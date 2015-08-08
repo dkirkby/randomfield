@@ -1,10 +1,15 @@
-****************
-Template package
-****************
+********
+speclite
+********
 
-This is the documentation for the affiliated package.
+This package provides utilities for efficient generation of random fields for cosmology.
+
+.. toctree::
+  :maxdepth: 2
+
+  install.rst
 
 Reference/API
 =============
 
-.. automodapi:: packagename
+.. automodapi:: randomfield
