@@ -1,6 +1,22 @@
 Installation
 ============
 
+Install the latest stable release using::
+
+    pip install randomfield
+
+Alternatively, you can install the latest developer version from github::
+
+    github clone https://github.com/dkirkby/randomfield.git
+    cd randomfield
+    python setup.py install
+
+Optional Dependency: pyFFTW
+---------------------------
+
+The `pyFFTW package <http://hgomersall.github.io/pyFFTW/index.html>`_ provides a wrapper around the `FFTW C library <http://www.fftw.org/>`_.  Installation of
+pyFFTW is straightforward but requires that multiple versions of the FFTW library are already installed.
+
 Install the float/double/quad and single/threaded versions of the FFTW library using each of the following configurations::
 
     # Single precision
@@ -20,6 +36,6 @@ After entering each `configure` command above, build and install the correspondi
     make
     sudo make install
 
-Install the `pyfftw package <http://hgomersall.github.io/pyFFTW/>`_::
+Install the `pyFFTW package`_ using::
 
     pip install pyfftw
