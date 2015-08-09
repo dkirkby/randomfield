@@ -2,7 +2,7 @@
 
 import numpy as np
 
-def allocate(shape, dtype):
+def allocate(shape, dtype, use_pyfftw=True):
     """
     Allocate a contiguous block of un-initialized typed memory.
 
@@ -17,6 +17,9 @@ def allocate(shape, dtype):
         Shape of the empty array to allocate.
     dtype : numpy data-type
         Data type to assign to the empty array.
+    use_pyfftw: bool
+        Use the `pyFFTW package
+        <http://hgomersall.github.io/pyFFTW/index.html>`_ if it is available.
 
     Returns
     -------
@@ -25,4 +28,10 @@ def allocate(shape, dtype):
         The storage order of multi-dimensional arrays is always C-type
         (row-major).
     """
+    if use_pyfftw:
+        try:
+            import pyfftw
+            return pyfftw.n_byte_align_empty(shape, 16, dtype, order='C')
+        except:
+            pass
     return np.empty(shape, dtype, order='C')
