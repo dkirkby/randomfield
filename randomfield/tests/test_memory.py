@@ -1,8 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 from astropy.tests.helper import pytest
-from ..memory import allocate
+from ..memory import *
 import numpy as np
+
 
 def test_1d():
     for use_pyfftw in (False, True):
@@ -15,6 +16,7 @@ def test_1d():
                 assert pyfftw.n_byte_align(buf, 16) is buf
             except ImportError:
                 pass
+
 
 def test_3d():
     for use_pyfftw in (False, True):
