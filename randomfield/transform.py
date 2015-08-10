@@ -8,6 +8,9 @@ import memory
 
 
 def expanded_shape(data, packed=False):
+    """
+    Determine the expanded shape of a 3D array.
+    """
     nx, ny, nz = data.shape
     if nx % 2 or ny % 2:
         raise ValueError('First two dimensions of array must be even.')
@@ -19,6 +22,36 @@ def expanded_shape(data, packed=False):
         if nz % 2:
             raise ValueError('Last dimension of unpacked array must be even.')
     return nx, ny, nz
+
+
+def scalar_type(complex_type):
+    """
+    Determine the type of the real and imaginary parts of a complex type.
+    """
+    complex_type = np.obj2sctype(complex_type)
+    if complex_type == np.csingle:
+        return np.single
+    elif complex_type == np.complex_:
+        return np.float_
+    elif complex_type == np.clongfloat:
+        return np.longfloat
+    else:
+        raise ValueError('Invalid complex_type: {0}.'.format(complex_type))
+
+
+def complex_type(scalar_type):
+    """
+    Determine the complex type corresponding to a component scalar type.
+    """
+    scalar_type = np.obj2sctype(scalar_type)
+    if scalar_type == np.single:
+        return np.csingle
+    elif scalar_type == np.float_:
+        return np.complex_
+    elif scalar_type == np.longfloat:
+        return np.clongfloat
+    else:
+        raise ValueError('Invalid scalar_type: {0}.'.format(scalar_type))
 
 
 def is_hermitian(data, packed=False, rtol=1e-08, atol=1e-08):
@@ -93,7 +126,7 @@ class Plan(object):
     """
     A plan for performing fast Fourier transforms on a single buffer.
     """
-    def __init__(self, shape, in_dtype=np.complex64, overwrite=True,
+    def __init__(self, shape, dtype_in=np.complex64, overwrite=True,
                  inverse=True, packed=False, use_pyfftw=True):
         try:
             nx, ny, nz = shape
@@ -102,48 +135,56 @@ class Plan(object):
         if nx % 2 or ny % 2 or nz % 2:
             raise ValueError('All shape dimensions must be even.')
 
-        # Convert in_dtype to an object in the numpy scalar type hierarchy.
-        in_dtype = np.obj2sctype(in_dtype)
-        if in_dtype is None:
-            raise ValueError('Invalid in_dtype: {0}.'.format(in_dtype))
+        # Convert dtype_in to an object in the numpy scalar type hierarchy.
+        dtype_in = np.obj2sctype(dtype_in)
+        if dtype_in is None:
+            raise ValueError('Invalid dtype_in: {0}.'.format(dtype_in))
 
         # Determine the input and output array type and shape.
         if packed:
             if inverse:
-                in_shape = (nx, ny, nz + 2)
-                if not issubclass(in_dtype, np.complexfloating):
+                shape_in = (nx, ny, nz//2 + 1)
+                if not issubclass(dtype_in, np.complexfloating):
                     raise ValueError(
-                        'Invalid in_dtype for inverse packed transform ' +
-                        '(should be complex): {0}.'.format(in_dtype))
-                out_dtype = in_dtype().real.dtype
-                out_shape = (nx, ny, nz//2 + 1)
+                        'Invalid dtype_in for inverse packed transform ' +
+                        '(should be complex): {0}.'.format(dtype_in))
+                dtype_out = scalar_type(dtype_in)
+                shape_out = (nx, ny, nz + 2) if overwrite else shape
             else:
-                in_shape = (nx, ny, nz//2 + 1)
-                if not issubclass(in_dtype, np.floating):
+                shape_in = (nx, ny, nz + 2) if overwrite else shape
+                if not issubclass(dtype_in, np.floating):
                     raise ValueError(
-                        'Invalid in_dtype for forward packed transform ' +
-                        '(should be floating): {0}.'.format(in_dtype))
-                out_dtype = (in_dtype() + 1j * in_dtype()).dtype
-                out_shape = (nx, ny, nz + 2)
+                        'Invalid dtype_in for forward packed transform ' +
+                        '(should be floating): {0}.'.format(dtype_in))
+                dtype_out = complex_type(dtype_in)
+                print(dtype_in, dtype_out)
+                shape_out = (nx, ny, nz//2 + 1)
         else:
-            if not issubclass(in_dtype, np.complexfloating):
+            if not issubclass(dtype_in, np.complexfloating):
                 raise ValueError(
-                    'Expected complex in_dtype for transform: {0}.'
-                    .format(in_dtype))
-            in_shape = out_shape = shape
-            out_dtype = in_dtype
+                    'Expected complex dtype_in for transform: {0}.'
+                    .format(dtype_in))
+            shape_in = shape_out = shape
+            dtype_out = dtype_in
 
         # Allocate the input and output data buffers.
         self.data_in = memory.allocate(
-            in_shape, in_dtype, use_pyfftw=use_pyfftw)
+            shape_in, dtype_in, use_pyfftw=use_pyfftw)
         if overwrite:
             if packed:
-                self.data_out = self.data_in.view(out_dtype).reshape(out_shape)
+                # See https://github.com/hgomersall/pyFFTW/issues/29
+                self.data_out = self.data_in.view(dtype_out).reshape(shape_out)
+                # Hide the padding without copying. See http://www.fftw.org/doc/
+                # Multi_002dDimensional-DFTs-of-Real-Data.html.
+                if inverse:
+                    self.data_out = self.data_out[:, :, :nz]
+                else:
+                    self.data_in = self.data_in[:, :, :nz]
             else:
                 self.data_out = self.data_in
         else:
             self.data_out = memory.allocate(
-                out_shape, out_dtype, use_pyfftw=use_pyfftw)
+                shape_out, dtype_out, use_pyfftw=use_pyfftw)
 
         # Try to use pyFFTW to configure the transform, if requested.
         self.use_pyfftw = use_pyfftw

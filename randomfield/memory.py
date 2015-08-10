@@ -33,7 +33,8 @@ def allocate(shape, dtype, use_pyfftw=True):
     if use_pyfftw:
         try:
             import pyfftw
-            return pyfftw.n_byte_align_empty(shape, 16, dtype, order='C')
+            return pyfftw.n_byte_align_empty(
+                shape, pyfftw.simd_alignment, dtype, order='C')
         except:
             pass
     return np.empty(shape, dtype, order='C')

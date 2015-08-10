@@ -31,3 +31,18 @@ def test_3d():
                 assert pyfftw.n_byte_align(buf, 16) is buf
             except ImportError:
                 pass
+
+
+def test_c2r_view():
+    for use_pyfftw in (False, True):
+        buf1 = allocate((4, 6, 5), dtype=np.complex64, use_pyfftw=use_pyfftw)
+        buf2 = buf1.view(np.float32).reshape(4, 6, 10)[:, :, :8]
+        assert (buf2.base is buf1) or (buf2.base is buf1.base)
+
+
+def test_r2c_view():
+    for use_pyfftw in (False, True):
+        buf1 = allocate((4, 6, 10), dtype=np.float32, use_pyfftw=use_pyfftw)
+        buf2 = buf1.view(np.complex64).reshape(4, 6, 5)
+        buf1 = buf1[:, :, :8]
+        assert (buf2.base is buf1) or (buf2.base is buf1.base)

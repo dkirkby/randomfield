@@ -5,12 +5,19 @@ Astropy affiliated package template
     :target: http://www.astropy.org
     :alt: Powered by Astropy Badge
 
-This package provides utilities for efficient generation of random fields for cosmology. Based on the astropy affiliated package template.
+This package provides utilities for efficient generation of random fields for
+cosmology. Based on the astropy affiliated package template.
 
-Randomfield has the following package requirements:
+Randomfield depends on the following external packages:
 
-* `numpy <http://www.numpy.org/>`__
+* `numpy <http://www.numpy.org/>`_ (version >= 1.6)
 * `astropy <http://www.astropy.org/>`__
+
+Randomfield can also take advantage of `pyFFTW
+<http://hgomersall.github.io/pyFFTW/index.html>`_ if it is available. See
+:doc:`install` for details.
+
+Randomfield is compatible with python versions 2.6, 2.7, 3.3 and 3.4.
 
 Status reports for developers
 -----------------------------

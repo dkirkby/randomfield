@@ -9,18 +9,52 @@ from itertools import product
 
 
 shape = (4, 6, 8)
+packed_shape = (4, 6, 5)
 seed = 123
 TF = (True, False)
 complex_types = (np.complex64, np.complex128)
+float_types = (np.float32, np.float64)
 
 
 def test_c2c_result_type():
     for use_pyfftw, inverse, overwrite, dtype in \
         product(TF, TF, TF, complex_types):
-        result = Plan(shape=shape, in_dtype=dtype, inverse=inverse,
-            overwrite=overwrite, use_pyfftw=use_pyfftw).execute()
-        assert result.shape == shape
-        assert result.dtype == dtype
+        plan = Plan(shape=shape, dtype_in=dtype, inverse=inverse,
+                    overwrite=overwrite, use_pyfftw=use_pyfftw)
+        assert plan.data_in.shape == shape
+        assert plan.data_in.dtype == dtype
+        assert plan.data_out.shape == shape
+        assert plan.data_out.dtype == dtype
+        if overwrite:
+            assert plan.data_in is plan.data_out
+
+
+def test_c2r_result_type():
+    for use_pyfftw, overwrite, dtype_in in \
+        product(TF, TF, complex_types):
+        plan = Plan(shape=shape, dtype_in=dtype_in, inverse=True, packed=True,
+                    overwrite=overwrite, use_pyfftw=use_pyfftw)
+        assert plan.data_in.shape == packed_shape
+        assert plan.data_in.dtype == dtype_in
+        assert plan.data_out.shape == shape
+        assert plan.data_out.dtype == scalar_type(dtype_in)
+        if overwrite:
+            assert ((plan.data_out.base is plan.data_in) or
+                    (plan.data_out.base is plan.data_in.base))
+
+
+def test_r2c_result_type():
+    for use_pyfftw, overwrite, dtype_in in \
+        product(TF, TF, float_types):
+        plan = Plan(shape=shape, dtype_in=dtype_in, inverse=False, packed=True,
+                    overwrite=overwrite, use_pyfftw=use_pyfftw)
+        assert plan.data_in.shape == shape
+        assert plan.data_in.dtype == dtype_in
+        assert plan.data_out.shape == packed_shape
+        assert plan.data_out.dtype == complex_type(dtype_in)
+        if overwrite:
+            assert ((plan.data_out.base is plan.data_in) or
+                    (plan.data_out.base is plan.data_in.base))
 
 
 def test_c2c_round_trip():
@@ -28,10 +62,10 @@ def test_c2c_round_trip():
     for use_pyfftw, inverse_first, overwrite, dtype in \
         product(TF, TF, TF, complex_types):
         plan_f = Plan(
-            shape=shape, in_dtype=dtype, inverse=inverse_first,
+            shape=shape, dtype_in=dtype, inverse=inverse_first,
             overwrite=overwrite, use_pyfftw=use_pyfftw)
         plan_r = Plan(
-            shape=shape, in_dtype=dtype, inverse=not inverse_first,
+            shape=shape, dtype_in=dtype, inverse=not inverse_first,
             overwrite=overwrite, use_pyfftw=use_pyfftw)
         real_size = 2 * plan_f.data_in.size
         real_dtype = plan_f.data_in.real.dtype
@@ -48,7 +82,7 @@ def test_full_symmetry():
     np.random.seed(seed)
     for use_pyfftw, overwrite in product(TF, TF):
         plan = Plan(
-            shape=shape, in_dtype=np.complex64, inverse=False,
+            shape=shape, dtype_in=np.complex64, inverse=False,
             overwrite=overwrite, use_pyfftw=use_pyfftw)
         plan.data_in[:] = np.random.normal(size=shape)
         result = plan.execute()
@@ -59,7 +93,7 @@ def test_full_symmetrized():
     np.random.seed(seed)
     for use_pyfftw, overwrite in product(TF, TF):
         plan = Plan(
-            shape=shape, in_dtype=np.complex64, inverse=True,
+            shape=shape, dtype_in=np.complex64, inverse=True,
             overwrite=overwrite, use_pyfftw=use_pyfftw)
         real_size = 2 * plan.data_in.size
         real_dtype = plan.data_in.real.dtype
