@@ -16,6 +16,28 @@ complex_types = (np.complex64, np.complex128)
 float_types = (np.float32, np.float64)
 
 
+def test_good_types():
+    assert scalar_type(np.complex64) == np.float32
+    assert scalar_type(np.complex128) == np.float64
+    assert complex_type(np.float32) == np.complex64
+    assert complex_type(np.float64) == np.complex128
+    assert scalar_type('complex') == np.float_
+    assert complex_type('float') == np.complex_
+    assert scalar_type(complex) == np.float_
+    assert complex_type(float) == np.complex_
+
+
+def test_bad_types():
+    with pytest.raises(ValueError):
+        scalar_type(np.float32)
+    with pytest.raises(ValueError):
+        complex_type(np.complex64)
+    with pytest.raises(ValueError):
+        scalar_type(np.int)
+    with pytest.raises(ValueError):
+        complex_type(np.int)
+
+
 def test_c2c_result_type():
     for use_pyfftw, inverse, overwrite, dtype in \
         product(TF, TF, TF, complex_types):
