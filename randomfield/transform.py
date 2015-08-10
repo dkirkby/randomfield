@@ -93,29 +93,88 @@ class Plan(object):
     """
     A plan for performing fast Fourier transforms on a single buffer.
     """
-    def __init__(self, shape, dtype=np.float32,
+    def __init__(self, shape, in_dtype=np.complex64, overwrite=True,
                  inverse=True, packed=False, use_pyfftw=True):
-        self.data = memory.allocate(shape, dtype, use_pyfftw=use_pyfftw)
-        self.inverse = inverse
-        self.fftw_plan = None
+        try:
+            nx, ny, nz = shape
+        except (TypeError, ValueError):
+            raise ValueError('Expected 3D shape.')
+        if nx % 2 or ny % 2 or nz % 2:
+            raise ValueError('All shape dimensions must be even.')
+
+        # Convert in_dtype to an object in the numpy scalar type hierarchy.
+        in_dtype = np.obj2sctype(in_dtype)
+        if in_dtype is None:
+            raise ValueError('Invalid in_dtype: {0}.'.format(in_dtype))
+
+        # Determine the input and output array type and shape.
+        if packed:
+            if inverse:
+                in_shape = (nx, ny, nz + 2)
+                if not issubclass(in_dtype, np.complexfloating):
+                    raise ValueError(
+                        'Invalid in_dtype for inverse packed transform ' +
+                        '(should be complex): {0}.'.format(in_dtype))
+                out_dtype = in_dtype().real.dtype
+                out_shape = (nx, ny, nz//2 + 1)
+            else:
+                in_shape = (nx, ny, nz//2 + 1)
+                if not issubclass(in_dtype, np.floating):
+                    raise ValueError(
+                        'Invalid in_dtype for forward packed transform ' +
+                        '(should be floating): {0}.'.format(in_dtype))
+                out_dtype = (in_dtype() + 1j * in_dtype()).dtype
+                out_shape = (nx, ny, nz + 2)
+        else:
+            if not issubclass(in_dtype, np.complexfloating):
+                raise ValueError(
+                    'Expected complex in_dtype for transform: {0}.'
+                    .format(in_dtype))
+            in_shape = out_shape = shape
+            out_dtype = in_dtype
+
+        # Allocate the input and output data buffers.
+        self.data_in = memory.allocate(
+            in_shape, in_dtype, use_pyfftw=use_pyfftw)
+        if overwrite:
+            if packed:
+                self.data_out = self.data_in.view(out_dtype).reshape(out_shape)
+            else:
+                self.data_out = self.data_in
+        else:
+            self.data_out = memory.allocate(
+                out_shape, out_dtype, use_pyfftw=use_pyfftw)
+
+        # Try to use pyFFTW to configure the transform, if requested.
+        self.use_pyfftw = use_pyfftw
         if use_pyfftw:
             try:
                 import pyfftw
-                self.fftw_plan = pyfftw.FFTW(self.data, self.data,
-                    direction=('FFTW_BACKWARD' if inverse else 'FFTW_FORWARD'),
+                direction = 'FFTW_BACKWARD' if inverse else 'FFTW_FORWARD'
+                self.fftw_plan = pyfftw.FFTW(
+                    self.data_in, self.data_out, direction=direction,
                     axes=(0, 1, 2))
+                self.fftw_norm = np.float(nx * ny * nz)**0.5
             except ImportError:
-                pass
+                self.use_pyfftw = False
+
+        # Fall back to numpy.fft if we are not using pyFFTW.
+        if not use_pyfftw:
+            if inverse:
+                self.transformer = np.fft.irfftn if packed else np.fft.ifftn
+            else:
+                self.transformer = np.fft.rfftn if packed else np.fft.fftn
 
     def execute(self):
-        if self.fftw_plan is None:
-            # This probably creates a temporary for the RHS, thus doubling
-            # the peak memory requirements.  Any way to confirm this?
-            if self.inverse:
-                self.data[:] = np.fft.ifftn(self.data, axes=(0,1,2))
-            else:
-                self.data[:] = np.fft.fftn(self.data, axes=(0,1,2))
-        else:
+        if self.use_pyfftw:
             self.fftw_plan.execute()
-            self.data /= np.sqrt(self.data.size)
-        return self.data
+            # FFTW does not apply any normalization factors so a round trip
+            # gains a factor of nx*ny*nz.  The choice of how to split this
+            # normalization factor between the forward and inverse transforms
+            # is arbitrary, but we adopt the numpy.fft convention.
+            self.data_out /= self.fftw_norm
+        else:
+            # This probably creates a temporary for the RHS, thus doubling
+            # the peak memory requirements.  Any way to avoid this?
+            self.data_out[:] = self.transformer(self.data_in, axes=(0,1,2))
+        return self.data_out
