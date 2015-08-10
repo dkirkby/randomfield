@@ -90,25 +90,44 @@ def test_c2c_round_trip():
             shape=shape, dtype_in=dtype, inverse=not inverse_first,
             overwrite=overwrite, use_pyfftw=use_pyfftw)
         real_size = 2 * plan_f.data_in.size
-        real_dtype = plan_f.data_in.real.dtype
+        real_dtype = scalar_type(dtype)
         plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
             np.random.normal(size=real_size))
         original = np.copy(plan_f.data_in)
         plan_r.data_in[:] = plan_f.execute()
         result = plan_r.execute()
-        assert np.allclose(original, result, rtol=1e-4), (
-            use_pyfftw, inverse_first, dtype)
+        assert np.allclose(original, result, rtol=1e-4)
 
-
-def test_full_symmetry():
+"""
+def test_c2r_round_trip():
     np.random.seed(seed)
-    for use_pyfftw, overwrite in product(TF, TF):
+    for use_pyfftw, overwrite, dtype in product(TF, TF, complex_types):
+        plan_f = Plan(
+            shape=shape, dtype_in=dtype, inverse=True,
+            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+        plan_r = Plan(
+            shape=shape, dtype_in=scalar_type(dtype), inverse=False,
+            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+        real_size = 2 * plan_f.data_in.size
+        real_dtype = scalar_type(dtype)
+        plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
+            np.random.normal(size=real_size))
+        symmetrize(plan_f.data_in)
+        original = np.copy(plan_f.data_in)
+        plan_r.data_in[:] = plan_f.execute()
+        result = plan_r.execute()
+        assert np.allclose(original, result, rtol=1e-4)
+"""
+
+def test_is_hermitian():
+    np.random.seed(seed)
+    for use_pyfftw, overwrite, packed in product(TF, TF, TF):
         plan = Plan(
-            shape=shape, dtype_in=np.complex64, inverse=False,
-            overwrite=overwrite, use_pyfftw=use_pyfftw)
-        plan.data_in[:] = np.random.normal(size=shape)
+            shape=shape, dtype_in=np.complex64, inverse=True,
+            overwrite=overwrite, packed=packed, use_pyfftw=use_pyfftw)
+        plan.data_in[:] = np.random.normal(size=plan.data_in.shape)
         result = plan.execute()
-        assert is_hermitian(result)
+        assert is_hermitian(result, packed=packed)
 
 
 def test_full_symmetrized():

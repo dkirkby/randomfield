@@ -157,7 +157,6 @@ class Plan(object):
                         'Invalid dtype_in for forward packed transform ' +
                         '(should be floating): {0}.'.format(dtype_in))
                 dtype_out = complex_type(dtype_in)
-                print(dtype_in, dtype_out)
                 shape_out = (nx, ny, nz//2 + 1)
         else:
             if not issubclass(dtype_in, np.complexfloating):
