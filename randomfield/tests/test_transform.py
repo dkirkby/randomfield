@@ -1,5 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
+from __future__ import print_function, division
+
 from astropy.tests.helper import pytest
 from ..transform import *
 import numpy as np
@@ -42,10 +44,26 @@ def test_round_trip():
 
 def test_full_symmetry():
     np.random.seed(seed)
-    for use_pyfftw in (False, ):
+    for use_pyfftw in (True, False):
         plan = Plan(
             shape=shape, dtype=np.complex64, inverse=False,
             use_pyfftw=use_pyfftw)
         plan.data[:] = np.random.normal(size=shape)
         result = plan.execute()
-        assert is_symmetric_full(result)
+        assert is_hermitian(result)
+
+
+def test_full_symmetrized():
+    np.random.seed(seed)
+    for use_pyfftw in (True, False):
+        plan = Plan(
+            shape=shape, dtype=np.complex64, inverse=True,
+            use_pyfftw=use_pyfftw)
+        real_size = 2 * plan.data.size
+        real_dtype = plan.data.real.dtype
+        plan.data.view(real_dtype).reshape(real_size)[:] = (
+            np.random.normal(size=real_size))
+        symmetrize(plan.data)
+        assert is_hermitian(plan.data)
+        result = plan.execute()
+        assert np.allclose(result.imag, 0)
