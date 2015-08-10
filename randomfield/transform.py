@@ -147,7 +147,7 @@ class Plan(object):
 
         # Try to use pyFFTW to configure the transform, if requested.
         self.use_pyfftw = use_pyfftw
-        if use_pyfftw:
+        if self.use_pyfftw:
             try:
                 import pyfftw
                 direction = 'FFTW_BACKWARD' if inverse else 'FFTW_FORWARD'
@@ -159,7 +159,7 @@ class Plan(object):
                 self.use_pyfftw = False
 
         # Fall back to numpy.fft if we are not using pyFFTW.
-        if not use_pyfftw:
+        if not self.use_pyfftw:
             if inverse:
                 self.transformer = np.fft.irfftn if packed else np.fft.ifftn
             else:
