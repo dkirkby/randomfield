@@ -127,7 +127,7 @@ class Plan(object):
     A plan for performing fast Fourier transforms on a single buffer.
     """
     def __init__(self, shape, dtype_in=np.complex64, overwrite=True,
-                 inverse=True, packed=False, use_pyfftw=True):
+                 inverse=True, packed=True, use_pyfftw=True):
         try:
             nx, ny, nz = shape
         except (TypeError, ValueError):

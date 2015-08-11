@@ -42,7 +42,7 @@ def test_c2c_result_type():
     for use_pyfftw, inverse, overwrite, dtype in \
         product(TF, TF, TF, complex_types):
         plan = Plan(shape=shape, dtype_in=dtype, inverse=inverse,
-                    overwrite=overwrite, use_pyfftw=use_pyfftw)
+                    overwrite=overwrite, packed=False, use_pyfftw=use_pyfftw)
         assert plan.data_in.shape == shape
         assert plan.data_in.dtype == dtype
         assert plan.data_out.shape == shape
@@ -115,10 +115,10 @@ def test_c2c_round_trip():
         product(TF, TF, TF, complex_types):
         plan_f = Plan(
             shape=shape, dtype_in=dtype, inverse=inverse_first,
-            overwrite=overwrite, use_pyfftw=use_pyfftw)
+            overwrite=overwrite, packed=False, use_pyfftw=use_pyfftw)
         plan_r = Plan(
             shape=shape, dtype_in=dtype, inverse=not inverse_first,
-            overwrite=overwrite, use_pyfftw=use_pyfftw)
+            overwrite=overwrite, packed=False, use_pyfftw=use_pyfftw)
         real_size = 2 * plan_f.data_in.size
         real_dtype = scalar_type(dtype)
         plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
