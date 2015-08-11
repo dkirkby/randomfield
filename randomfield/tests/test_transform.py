@@ -121,16 +121,18 @@ def test_c2r_round_trip():
 
 def test_is_hermitian():
     np.random.seed(seed)
-    for use_pyfftw, overwrite, packed in product(TF, TF, TF):
+    for use_pyfftw, overwrite, packed, ftype in \
+        product(TF, TF, TF, float_types):
         plan = Plan(
-            shape=shape, dtype_in=np.complex64, inverse=True,
-            overwrite=overwrite, packed=packed, use_pyfftw=use_pyfftw)
+            shape=shape, dtype_in=ftype if packed else complex_type(ftype),
+            inverse=False, overwrite=overwrite, packed=packed,
+            use_pyfftw=use_pyfftw)
         plan.data_in[:] = np.random.normal(size=plan.data_in.shape)
         result = plan.execute()
         assert is_hermitian(result, packed=packed)
 
 
-def test_full_symmetrized():
+def test_symmetrize():
     np.random.seed(seed)
     for use_pyfftw, overwrite in product(TF, TF):
         plan = Plan(

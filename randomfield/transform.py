@@ -58,9 +58,9 @@ def is_hermitian(data, packed=False, rtol=1e-08, atol=1e-08):
     """
     Test if a 3D field is Hermitian.
     """
-    nx, ny, nz = expanded_shape(data)
+    nx, ny, nz = expanded_shape(data, packed=packed)
     if packed:
-        z_range = [0, nz//2 + 1]
+        z_range = [0, nz//2]
     else:
         z_range = range(nz//2 + 1)
     for ix in range(nx//2 + 1):
@@ -79,7 +79,7 @@ def symmetrize(data, packed=False):
     """
     Symmetrize a complex 3D field so that its inverse FFT is real valued.
     """
-    nx, ny, nz = expanded_shape(data)
+    nx, ny, nz = expanded_shape(data, packed=packed)
     xlo, xhi = slice(1, nx//2), slice(nx-1, nx//2, -1)
     ylo, yhi = slice(1, ny//2), slice(ny-1, ny//2, -1)
 
