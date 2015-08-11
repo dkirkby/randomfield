@@ -96,9 +96,9 @@ def test_c2c_round_trip():
         original = np.copy(plan_f.data_in)
         plan_r.data_in[:] = plan_f.execute()
         result = plan_r.execute()
-        assert np.allclose(original, result, rtol=1e-4)
+        assert np.allclose(original, result, atol=1e-6)
 
-"""
+
 def test_c2r_round_trip():
     np.random.seed(seed)
     for use_pyfftw, overwrite, dtype in product(TF, TF, complex_types):
@@ -112,12 +112,12 @@ def test_c2r_round_trip():
         real_dtype = scalar_type(dtype)
         plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
             np.random.normal(size=real_size))
-        symmetrize(plan_f.data_in)
+        symmetrize(plan_f.data_in, packed=True)
         original = np.copy(plan_f.data_in)
         plan_r.data_in[:] = plan_f.execute()
         result = plan_r.execute()
-        assert np.allclose(original, result, rtol=1e-4)
-"""
+        assert np.allclose(original, result, atol=1e-6)
+
 
 def test_is_hermitian():
     np.random.seed(seed)
@@ -134,15 +134,16 @@ def test_is_hermitian():
 
 def test_symmetrize():
     np.random.seed(seed)
-    for use_pyfftw, overwrite in product(TF, TF):
+    for use_pyfftw, overwrite, packed, ctype in \
+        product(TF, TF, TF, complex_types):
         plan = Plan(
-            shape=shape, dtype_in=np.complex64, inverse=True,
-            overwrite=overwrite, use_pyfftw=use_pyfftw)
+            shape=shape, dtype_in=ctype, inverse=True,
+            overwrite=overwrite, packed=packed, use_pyfftw=use_pyfftw)
         real_size = 2 * plan.data_in.size
-        real_dtype = plan.data_in.real.dtype
+        real_dtype = scalar_type(ctype)
         plan.data_in.view(real_dtype).reshape(real_size)[:] = (
             np.random.normal(size=real_size))
-        symmetrize(plan.data_in)
-        assert is_hermitian(plan.data_in)
+        symmetrize(plan.data_in, packed=packed)
+        assert is_hermitian(plan.data_in, packed=packed)
         result = plan.execute()
         assert np.allclose(result.imag, 0)
