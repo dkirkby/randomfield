@@ -18,7 +18,7 @@ def test_fill():
     kz0 = 2 * np.pi / (spacing * nz)
     for packed in (True, False):
         plan = Plan(shape=(nx, ny, nz), packed=packed)
-        fill_with_ksquared(plan.data_in, spacing=spacing, packed=packed)
+        fill_with_log10k(plan.data_in, spacing=spacing, packed=packed)
         for ix in range(nx):
             jx = ix if ix <= nx//2 else ix - nx
             for iy in range(ny):
@@ -28,17 +28,23 @@ def test_fill():
                         continue
                     jz = iz if iz <= nz//2 else iz - nz
                     ksq = (jx * kx0)**2 + (jy * ky0)**2 + (jz * kz0)**2
-                    assert abs(plan.data_in[ix, iy, iz] - ksq) < 1e-6
+                    if ix == 0 and iy == 0 and iz == 0:
+                        assert np.isinf(plan.data_in[ix, iy, iz])
+                    else:
+                        log10k = np.log10(np.sqrt(ksq))
+                        assert abs(plan.data_in[ix, iy, iz] - log10k) < 1e-6
 
 
 def test_bounds():
     plan = Plan(shape=(nx, ny, nz))
-    fill_with_ksquared(plan.data_in, spacing=spacing)
+    fill_with_log10k(plan.data_in, spacing=spacing)
     # Find the limits by brute force.
-    kmax1 = np.sqrt(np.max(plan.data_in))
-    assert plan.data_in[0, 0, 0] == 0
-    plan.data_in[0, 0, 0] = kmax1**2
-    kmin1 = np.sqrt(np.min(plan.data_in))
+    kmax1 = 10**np.max(plan.data_in)
+    print(plan.data_in)
+    assert np.isinf(plan.data_in[0, 0, 0])
+    plan.data_in[0, 0, 0] = np.log10(kmax1)
+    kmin1 = 10**np.min(plan.data_in)
+    print(kmin1, kmax1)
     kmin2, kmax2 = get_k_bounds(plan.data_in, spacing=spacing)
     assert abs((kmin1 - kmin2)/kmin1) < 1e-7
     assert abs((kmax1 - kmax2)/kmax1) < 1e-7

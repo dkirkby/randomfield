@@ -6,27 +6,10 @@ import inspect
 import os.path
 
 import numpy as np
+import scipy.interpolate
 import astropy.cosmology
 
 from transform import expanded_shape
-
-
-def fill_with_ksquared(data, spacing, packed=True):
-    """
-    Fill an array with wavenumber squared magnitudes |k|**2.
-    """
-    nx, ny, nz = expanded_shape(data, packed=packed)
-    lambda0 = spacing / (2 * np.pi)
-    kx = np.fft.fftfreq(nx, lambda0)
-    ky = np.fft.fftfreq(ny, lambda0)
-    kz = np.fft.fftfreq(nz, lambda0)
-    if packed:
-        kz = kz[:nz//2 + 1]
-    kx2_grid, ky2_grid, kz2_grid = np.meshgrid(
-        kx**2, ky**2, kz**2, sparse=True, indexing='ij')
-    np.add(kx2_grid, ky2_grid, out=data)
-    np.add(data, kz2_grid, out=data)
-    return data
 
 
 def get_k_bounds(data, spacing, packed=True):
@@ -38,6 +21,71 @@ def get_k_bounds(data, spacing, packed=True):
     k_min = k0 / max(nx, ny, nz)
     k_max = k0 * np.sqrt(3) / 2
     return k_min, k_max
+
+
+def fill_with_log10k(data, spacing, packed=True):
+    """
+    Fill an array with values of log10(|k|).
+
+    Note that the value at [0, 0, 0] will be log10(0) = -inf.
+    """
+    nx, ny, nz = expanded_shape(data, packed=packed)
+    lambda0 = spacing / (2 * np.pi)
+    kx = np.fft.fftfreq(nx, lambda0)
+    ky = np.fft.fftfreq(ny, lambda0)
+    kz = np.fft.fftfreq(nz, lambda0)
+    if packed:
+        kz = kz[:nz//2 + 1]
+    # With the sparse option, the memory usage of these grids is
+    # O(nx+ny+nz) rather than O(nx*ny*nz).
+    kx2_grid, ky2_grid, kz2_grid = np.meshgrid(
+        kx**2, ky**2, kz**2, sparse=True, indexing='ij')
+    # Zero the imaginary components of data.
+    data.imag = 0
+    # Calculate in place: data = kx**2 + ky**2
+    np.add(kx2_grid, ky2_grid, out=data.real)
+    # Calculate in place: data = kx**2 + ky**2 + kz**2 = |k|**2
+    np.add(data, kz2_grid, out=data.real)
+    # Calculate in place: data = log10(|k|**2) = 2*log10(|k|)
+    # Ignore the RuntimeWarning for log10(0) = -inf.
+    old_settings = np.seterr(under='ignore')
+    np.log10(data.real, out=data.real)
+    np.seterr(**old_settings)
+    ##data[0, 0, 0] = -np.inf
+    # Calculate in place: data = log10(|k|)
+    data.real *= 0.5
+    return data
+
+
+def tabulate_power(data, power, packed=True):
+    """
+    Replace log10(|k|) with P(|k|) on a grid.
+    """
+    if not isinstance(power, np.ndarray):
+        raise ValueError('Power must be a structured numpy array.')
+    if not ('k' in power.dtype.names and 'Pk' in power.dtype.names):
+        raise ValueError('Power must have fields named k, Pk.')
+
+    power_k_min, power_k_max = np.min(power['k']), np.max(power['k'])
+    if power_k_min <= 0:
+        raise ValueError('Power uses min(k) <= 0: {0}.'.format(power_k_min))
+    data_k_min, data_k_max = get_k_bounds(data, packed=packed)
+    if power_k_min > data_k_min or power_k_max < data_k_max:
+        raise ValueError(
+        'Power k range [{0}:{1}] does not cover data k range [{2}:{3}].'
+        .format(power_k_min, power_k_max, data_k_min, data_k_max))
+
+    # Build an interpolater of P(k) that is linear in log10(k).
+    log10_k = np.log10(power['k'])
+    Pk_interpolator = scipy.interpolate.interp1d(
+        log10_k, power['Pk'], kind='linear', copy=False)
+
+    # Interpolate on log10(k).
+    # We would ideally do this in place, but scipy.interpolate methods
+    # do not support this.  A slower but memory efficient alternative is
+    # to interpolate in batches.  For now we just do the simplest thing.
+    data[:] = Pk_interpolator(data)
+    return data
 
 
 def get_class_parameters(cosmology='Planck13'):
