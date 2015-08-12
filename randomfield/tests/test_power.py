@@ -42,3 +42,40 @@ def test_bounds():
     kmin2, kmax2 = get_k_bounds(plan.data_in, spacing=spacing)
     assert abs((kmin1 - kmin2)/kmin1) < 1e-7
     assert abs((kmax1 - kmax2)/kmax1) < 1e-7
+
+
+def test_class_setup():
+    cosmology = astropy.cosmology.Planck13
+    assert cosmology.Om0 == cosmology.Odm0 + cosmology.Ob0
+    assert 1 == (cosmology.Om0 + cosmology.Ode0 + cosmology.Ok0 +
+                 cosmology.Ogamma0 + cosmology.Onu0)
+    class_parameters = get_class_parameters(cosmology)
+    try:
+        from classy import Class
+        cosmo = Class()
+        cosmo.set(class_parameters)
+        cosmo.compute()
+        assert cosmo.h() == cosmology.h
+        assert cosmo.T_cmb() == cosmology.Tcmb0.value
+        assert cosmo.Omega_b() == cosmology.Ob0
+        # Calculate Omega(CDM)_0 two ways:
+        assert abs((cosmo.Omega_m() - cosmo.Omega_b()) -
+                   (cosmology.Odm0 - cosmology.Onu0)) < 1e-8
+        assert abs(cosmo.Omega_m() - (cosmology.Om0 - cosmology.Onu0)) < 1e-8
+        # CLASS calculates Omega_Lambda itself so this is a non-trivial test.
+        calculated_Ode0 = cosmo.get_current_derived_parameters(
+            ['Omega_Lambda'])['Omega_Lambda']
+        assert abs(calculated_Ode0 - (cosmology.Ode0 + cosmology.Onu0)) < 1e-5
+        cosmo.struct_cleanup()
+        cosmo.empty()
+    except ImportError:
+        pass
+
+"""
+def test_calculate_power():
+    try:
+        import classy
+        result = calculate_power(1e-4, 1.0)
+    except ImportError:
+        pass
+"""
