@@ -7,7 +7,7 @@ import numpy as np
 from transform import scalar_type
 
 
-def randomize(data):
+def randomize(data, seed=None):
     """
     Randomize data by multiplying existing sigma values by normal deviates.
     """
@@ -18,8 +18,10 @@ def randomize(data):
     real_type = scalar_type(data.dtype)
     real_size = 2 * data.size
     sigmas = data.view(real_type).reshape(real_size)
+    # Seed the random generator state without disturbing the default state.
+    generator = np.random.RandomState(seed)
     # Scale each sigma by a normal deviate.  Should break this up into
     # chunks to avoid a large temporary value, but do the simplest thing
     # for now.
-    sigmas *= np.random.normal(size=real_size)
+    sigmas *= generator.normal(size=real_size)
     return data

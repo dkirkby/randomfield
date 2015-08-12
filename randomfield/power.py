@@ -45,10 +45,10 @@ def fill_with_log10k(data, spacing, packed=True):
     # Calculate in place: data = kx**2 + ky**2
     np.add(kx2_grid, ky2_grid, out=data.real)
     # Calculate in place: data = kx**2 + ky**2 + kz**2 = |k|**2
-    np.add(data, kz2_grid, out=data.real)
+    np.add(data.real, kz2_grid, out=data.real)
     # Calculate in place: data = log10(|k|**2) = 2*log10(|k|)
     # Ignore the RuntimeWarning for log10(0) = -inf.
-    old_settings = np.seterr(under='ignore')
+    old_settings = np.seterr(divide='ignore')
     np.log10(data.real, out=data.real)
     np.seterr(**old_settings)
     ##data[0, 0, 0] = -np.inf
