@@ -2,6 +2,9 @@
 
 from __future__ import print_function, division
 
+import inspect
+import os.path
+
 import numpy as np
 import astropy.cosmology
 
@@ -149,4 +152,12 @@ def load_default_power():
     The range of k values used here is sufficient to cover grids with
     spacing >= 0.25 Mpc/h and and box dimensions <= 50 Gpc/h.
     """
-    return np.loadtxt('default_power.dat', dtype=[('k', float), ('Pk', float)])
+    try:
+        import memory
+        package_path = os.path.dirname(inspect.getfile(memory))
+        data_path = os.path.join(package_path, 'data', 'default_power.dat')
+        return np.loadtxt(data_path, dtype=[('k', float), ('Pk', float)])
+    except ImportError:
+        raise RuntimeError('Unable to locate default_power.dat.')
+    except IOError:
+        raise RuntimeError('Unable to load default_power.dat')

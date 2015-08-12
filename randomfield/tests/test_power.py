@@ -71,11 +71,16 @@ def test_class_setup():
     except ImportError:
         pass
 
-"""
-def test_calculate_power():
+
+def test_default_power():
+    default_power = load_default_power()
+    assert default_power.dtype == [('k', float), ('Pk', float)]
     try:
+        # Re-calculate the default power if CLASS is installed.
         import classy
-        result = calculate_power(1e-4, 1.0)
+        k_min, k_max = default_power['k'][[0,-1]]
+        calculated_power = calculate_power(k_min, k_max)
+        assert np.allclose(calculated_power['k'], default_power['k'])
+        assert np.allclose(calculated_power['Pk'], default_power['Pk'])
     except ImportError:
         pass
-"""
