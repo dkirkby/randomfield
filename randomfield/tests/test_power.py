@@ -84,6 +84,8 @@ def test_default_power():
     """
     try:
         # Re-calculate the default power if CLASS is installed.
+        # This is relatively slow, but its useful to track any changes
+        # to what CLASS calculates given the same input configuration.
         import classy
         k_min, k_max = default_power['k'][[0,-1]]
         calculated_power = calculate_power(k_min, k_max)
