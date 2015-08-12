@@ -11,6 +11,7 @@ cosmology. Based on the astropy affiliated package template.
 Randomfield depends on the following external packages:
 
 * `numpy <http://www.numpy.org/>`_ (version >= 1.7)
+* `scipy <http://www.scipy.org/scipylib/index.html>`_
 * `astropy <http://www.astropy.org/>`__
 
 Randomfield can also take advantage of `pyFFTW
