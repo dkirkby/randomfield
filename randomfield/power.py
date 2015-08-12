@@ -91,14 +91,13 @@ def get_class_parameters(cosmology='Planck13'):
         num_light = 3 - num_massive
         class_parameters['N_ur'] = (3.00641 - num_massive +
             num_light*(cosmology.Neff - 3.00641)/3.)
-        print(class_parameters)
     except AttributeError:
         raise ValueError('Cosmology is missing required attributes.')
     return class_parameters
 
 
 def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
-                    cosmology='Planck13'):
+                    cosmology='Planck13', n_s=0.9619, logA=3.0980):
     """
     Calculate the power spectrum P(k,z) over the range k_min <= k <= k_max.
     """
@@ -114,12 +113,14 @@ def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
         class_parameters['P_k_max_h/Mpc'] = k_max
     else:
         class_parameters['P_k_max_1/Mpc'] = k_max
+    class_parameters['n_s'] = n_s
+    class_parameters['ln10^{10}A_s'] = logA
     cosmo.set(class_parameters)
     cosmo.compute()
 
     if scaled_by_h:
         k_scale = cosmo.h()
-        Pk_scale = cosmo.h()**(-3)
+        Pk_scale = cosmo.h()**3
     else:
         k_scale = 1.
         Pk_scale = 1.
