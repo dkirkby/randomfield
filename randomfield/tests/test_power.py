@@ -81,6 +81,7 @@ def test_class_setup():
 def test_default_power():
     default_power = load_default_power()
     assert default_power.dtype == [('k', float), ('Pk', float)]
+    """
     try:
         # Re-calculate the default power if CLASS is installed.
         import classy
@@ -90,3 +91,36 @@ def test_default_power():
         assert np.allclose(calculated_power['Pk'], default_power['Pk'])
     except ImportError:
         pass
+    """
+
+
+def test_tabulate_sigmas():
+    # Verify equation (60) of http://arxiv.org/abs/astro-ph/0506540
+    N3 = nx * ny * nz
+    Vbox = N3 * spacing**3
+    power = load_default_power()
+    Pk = scipy.interpolate.interp1d(power['k'], power['Pk'])
+    kx0 = 2 * np.pi / (spacing * nx)
+    ky0 = 2 * np.pi / (spacing * ny)
+    kz0 = 2 * np.pi / (spacing * nz)
+    for packed in (True, False):
+        plan = Plan(shape=(nx, ny, nz), packed=packed)
+        fill_with_log10k(plan.data_in, spacing=spacing, packed=packed)
+        tabulate_sigmas(plan.data_in, power, spacing, packed=packed)
+        assert plan.data_in[0, 0, 0] == 0
+        for ix in range(nx):
+            jx = ix if ix <= nx//2 else ix - nx
+            for iy in range(ny):
+                jy = iy if iy <= ny//2 else iy - ny
+                for iz in range(nz):
+                    if packed and iz > nz//2:
+                        continue
+                    jz = iz if iz <= nz//2 else iz - nz
+                    ksq = (jx * kx0)**2 + (jy * ky0)**2 + (jz * kz0)**2
+                    if ix == 0 and iy == 0 and iz == 0:
+                        continue
+                    k = np.sqrt(ksq)
+                    sigma = N3 * np.sqrt(Pk(k)/(2 * Vbox))
+                    # Match with a loose tolerance since we are using a
+                    # different interpolation scheme to calculate sigma here.
+                    assert abs(plan.data_in[ix, iy, iz] - sigma) < 1e-3 * sigma

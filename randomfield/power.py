@@ -57,34 +57,40 @@ def fill_with_log10k(data, spacing, packed=True):
     return data
 
 
-def tabulate_power(data, power, packed=True):
+def tabulate_sigmas(data, power, spacing, packed=True):
     """
-    Replace log10(|k|) with P(|k|) on a grid.
+    Replace an array of log10(|k|) values with the corresponding sigmas.
     """
     if not isinstance(power, np.ndarray):
         raise ValueError('Power must be a structured numpy array.')
     if not ('k' in power.dtype.names and 'Pk' in power.dtype.names):
         raise ValueError('Power must have fields named k, Pk.')
 
+    nx, ny, nz = expanded_shape(data, packed=packed)
+    N3 = nx * ny * nz
+    Vbox = N3 * spacing**3
+
     power_k_min, power_k_max = np.min(power['k']), np.max(power['k'])
     if power_k_min <= 0:
         raise ValueError('Power uses min(k) <= 0: {0}.'.format(power_k_min))
-    data_k_min, data_k_max = get_k_bounds(data, packed=packed)
+    data_k_min, data_k_max = get_k_bounds(data, spacing=spacing, packed=packed)
     if power_k_min > data_k_min or power_k_max < data_k_max:
         raise ValueError(
         'Power k range [{0}:{1}] does not cover data k range [{2}:{3}].'
         .format(power_k_min, power_k_max, data_k_min, data_k_max))
 
-    # Build an interpolater of P(k) that is linear in log10(k).
+    # Build an interpolater of sigma(|k|) that is linear in log10(|k|).
     log10_k = np.log10(power['k'])
-    Pk_interpolator = scipy.interpolate.interp1d(
-        log10_k, power['Pk'], kind='linear', copy=False)
+    sigma = N3 * np.sqrt(power['Pk'] / (2 * Vbox))
+    interpolator = scipy.interpolate.interp1d(
+        log10_k, sigma, kind='linear', copy=False,
+        bounds_error=False, fill_value=0)
 
-    # Interpolate on log10(k).
+    # Calculate interpolated values of sigma.
     # We would ideally do this in place, but scipy.interpolate methods
-    # do not support this.  A slower but memory efficient alternative is
-    # to interpolate in batches.  For now we just do the simplest thing.
-    data[:] = Pk_interpolator(data)
+    # do not support this.  A slower but memory efficient alternative would
+    # be to interpolate in batches.  For now we just do the simplest thing.
+    data.real = interpolator(data.real)
     return data
 
 
