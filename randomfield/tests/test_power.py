@@ -122,7 +122,7 @@ def test_tabulate_sigmas():
                     if ix == 0 and iy == 0 and iz == 0:
                         continue
                     k = np.sqrt(ksq)
-                    sigma = N3 * np.sqrt(Pk(k)/(2 * Vbox))
+                    sigma = N3**0.5 * np.sqrt(Pk(k)/(2 * Vbox))
                     # Match with a loose tolerance since we are using a
                     # different interpolation scheme to calculate sigma here.
                     assert abs(plan.data_in[ix, iy, iz] - sigma) < 1e-3 * sigma

@@ -81,7 +81,7 @@ def tabulate_sigmas(data, power, spacing, packed=True):
 
     # Build an interpolater of sigma(|k|) that is linear in log10(|k|).
     log10_k = np.log10(power['k'])
-    sigma = N3 * np.sqrt(power['Pk'] / (2 * Vbox))
+    sigma = N3**0.5 * np.sqrt(power['Pk'] / (2 * Vbox))
     interpolator = scipy.interpolate.interp1d(
         log10_k, sigma, kind='linear', copy=False,
         bounds_error=False, fill_value=0)
