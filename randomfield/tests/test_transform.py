@@ -163,3 +163,34 @@ def test_r2c_round_trip():
         plan_r.data_in[:] = plan_f.execute()
         result = plan_r.execute()
         assert np.allclose(original, result, atol=1e-6)
+
+
+def test_methods_agree():
+    """
+    Verify that np.fft and pyfftw give the same results (when pyfft
+    is available).
+    """
+    try:
+        import pyfftw
+        np.random.seed(seed)
+        for inverse, overwrite, dtype in product(TF, TF, complex_types):
+            for packed in (True, False) if inverse else (False,):
+                print(inverse, overwrite, dtype, packed)
+                plan1 = Plan(shape=shape, dtype_in=dtype, inverse=inverse,
+                             overwrite=overwrite, packed=packed,
+                             use_pyfftw=True)
+                plan2 = Plan(shape=shape, dtype_in=dtype, inverse=inverse,
+                             overwrite=overwrite, packed=packed,
+                             use_pyfftw=False)
+                real_size = 2 * plan1.data_in.size
+                real_dtype = scalar_type(dtype)
+                plan1.data_in.view(real_dtype).reshape(real_size)[:] = (
+                    np.random.normal(size=real_size))
+                if packed:
+                    symmetrize(plan1.data_in, packed=True)
+                plan2.data_in[:] = plan1.data_in
+                result1 = plan1.execute()
+                result2 = plan2.execute()
+                assert np.allclose(result1, result2, atol=1e-7)
+    except ImportError:
+        pass

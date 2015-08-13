@@ -125,6 +125,11 @@ def symmetrize(data, packed=False):
 class Plan(object):
     """
     A plan for performing fast Fourier transforms on a single buffer.
+
+    Transforms follow the `normalization convention of np.fft
+    <http://docs.scipy.org/doc/numpy/reference/routines.fft.html
+    #implementation-details>`__ independently of which implementation
+    is being used.
     """
     def __init__(self, shape, dtype_in=np.complex64, overwrite=True,
                  inverse=True, packed=True, use_pyfftw=True):
@@ -194,7 +199,7 @@ class Plan(object):
                 self.fftw_plan = pyfftw.FFTW(
                     self.data_in, self.data_out, direction=direction,
                     axes=(0, 1, 2))
-                self.fftw_norm = np.float(nx * ny * nz)**0.5
+                self.fftw_norm = np.float(nx * ny * nz if inverse else 1)
             except ImportError:
                 self.use_pyfftw = False
 

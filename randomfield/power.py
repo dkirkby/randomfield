@@ -60,6 +60,14 @@ def fill_with_log10k(data, spacing, packed=True):
 def tabulate_sigmas(data, power, spacing, packed=True):
     """
     Replace an array of log10(|k|) values with the corresponding sigmas.
+
+    Note that the scaling from P(k) to variance depends on convention for
+    normalizing the inverse FFT.  Since we divide the inverse FFT by
+    nx * ny * nz, the appropriate scaling here is::
+
+        sigma**2 = (nx * ny * nz) * P(k) / (2 * Vbox)
+                 = P(k) / (2 * spacing**3)
+
     """
     if not isinstance(power, np.ndarray):
         raise ValueError('Power must be a structured numpy array.')
@@ -81,7 +89,7 @@ def tabulate_sigmas(data, power, spacing, packed=True):
 
     # Build an interpolater of sigma(|k|) that is linear in log10(|k|).
     log10_k = np.log10(power['k'])
-    sigma = N3**0.5 * np.sqrt(power['Pk'] / (2 * Vbox))
+    sigma = N3 * np.sqrt(power['Pk'] / (2 * Vbox))
     interpolator = scipy.interpolate.interp1d(
         log10_k, sigma, kind='linear', copy=False,
         bounds_error=False, fill_value=0)
