@@ -6,7 +6,7 @@ from __future__ import print_function, division
 
 import numpy as np
 
-from transform import scalar_type
+import transform
 
 
 def randomize(data, seed=None):
@@ -17,7 +17,7 @@ def randomize(data, seed=None):
     data.imag = data.real
     # Generate a view of the real and imaginary parts as a 1D array of
     # real-valued sigmas.
-    real_type = scalar_type(data.dtype)
+    real_type = transform.scalar_type(data.dtype)
     real_size = 2 * data.size
     sigmas = data.view(real_type).reshape(real_size)
     # Seed the random generator state without disturbing the default state.

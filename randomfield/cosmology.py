@@ -105,3 +105,10 @@ def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
     cosmo.empty()
 
     return result
+
+
+def convert_delta_to_density(data, spacing, cosmology='Planck13', z_axis=-1):
+    """
+    Convert a delta field into a density field with light-cone evolution.
+    """
+    pass

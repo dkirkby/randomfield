@@ -3,7 +3,7 @@
 from __future__ import print_function, division
 
 from astropy.tests.helper import pytest
-from ..power import *
+from ..powertools import *
 from ..transform import Plan
 import numpy as np
 

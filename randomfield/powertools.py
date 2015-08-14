@@ -10,14 +10,14 @@ import os.path
 import numpy as np
 import scipy.interpolate
 
-from transform import expanded_shape
+import transform
 
 
 def get_k_bounds(data, spacing, packed=True):
     """
-    Return the bounds of |k|^2 values for the specified grid.
+    Return the bounds of k**2 values for the specified grid.
     """
-    nx, ny, nz = expanded_shape(data, packed=packed)
+    nx, ny, nz = transform.expanded_shape(data, packed=packed)
     k0 = (2 * np.pi) / spacing
     k_min = k0 / max(nx, ny, nz)
     k_max = k0 * np.sqrt(3) / 2
@@ -26,11 +26,11 @@ def get_k_bounds(data, spacing, packed=True):
 
 def fill_with_log10k(data, spacing, packed=True):
     """
-    Fill an array with values of log10(|k|).
+    Fill an array with values of log10(k).
 
     Note that the value at [0, 0, 0] will be log10(0) = -inf.
     """
-    nx, ny, nz = expanded_shape(data, packed=packed)
+    nx, ny, nz = transform.expanded_shape(data, packed=packed)
     lambda0 = spacing / (2 * np.pi)
     kx = np.fft.fftfreq(nx, lambda0)
     ky = np.fft.fftfreq(ny, lambda0)
@@ -118,7 +118,7 @@ def filter_power(power, sigma, out=None):
 
 def tabulate_sigmas(data, power, spacing, packed=True):
     """
-    Replace an array of log10(|k|) values with the corresponding sigmas.
+    Replace an array of log10(k) values with the corresponding sigmas.
 
     Note that the scaling from P(k) to variance depends on convention for
     normalizing the inverse FFT.  Since we divide the inverse FFT by
@@ -130,7 +130,7 @@ def tabulate_sigmas(data, power, spacing, packed=True):
     """
     validate_power(power)
 
-    nx, ny, nz = expanded_shape(data, packed=packed)
+    nx, ny, nz = transform.expanded_shape(data, packed=packed)
     N3 = nx * ny * nz
     Vbox = N3 * spacing**3
 

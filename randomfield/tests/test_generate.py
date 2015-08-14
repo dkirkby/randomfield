@@ -7,7 +7,7 @@ from ..generate import *
 import numpy as np
 from scipy.special import erf
 
-from ..power import load_default_power
+from ..powertools import load_default_power
 
 spacing = 2.5
 nxyz = 64

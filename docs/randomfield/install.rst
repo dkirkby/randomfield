@@ -39,3 +39,12 @@ After entering each `configure` command above, build and install the correspondi
 Install the `pyFFTW package`_ using::
 
     pip install pyfftw
+
+Optional Dependency: classy
+---------------------------
+
+The ``classy`` package provides python bindings to the C++ `CLASS package
+<http://class-code.net>`__ and enables power spectra to be calculated
+for arbitrary cosmologies.  If you do not install ``classy``, you can still
+generate fields for arbitrary cosmology using an external program such as
+`CAMB <http://camb.info>`__ to write tabulated power spectra to files.
