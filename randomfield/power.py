@@ -56,6 +56,64 @@ def fill_with_log10k(data, spacing, packed=True):
     return data
 
 
+def validate_power(power):
+    """
+    Validates a power spectrum.
+    """
+    if not isinstance(power, np.ndarray):
+        raise ValueError('Invalid type for power: {0}.'.format(type(power)))
+    if not 'k' in power.dtype.names or not 'Pk' in power.dtype.names:
+        raise ValueError('Missing required fields "k", "Pk" in power.')
+    if not np.all(np.isfinite(power['k'])):
+        raise ValueError('Power spectrum has some invalid values of k.')
+    if not np.all(np.isfinite(power['Pk'])):
+        raise ValueError('Power spectrum has some invalid values of P(k).')
+    if not np.array_equal(power['k'], np.unique(power['k'])):
+        raise ValueError('Power spectrum k values are not strictly increasing.')
+    if power['k'][0] <= 0:
+        raise ValueError('Power spectrum min(k) is <= 0.')
+    if np.any(power['Pk'] < 0):
+        raise ValueError('Power values P(k) are not all non-negative.')
+
+
+def filter_power(power, sigma, out=None):
+    """
+    Apply a Gaussian filtering to a power spectrum.
+
+    The smoothing length sigma should be in the inverse units of wavenumbers in
+    the input power['k'].  A delta field generated from a filtered P(k) is
+    effectively convolved with a 3D Gaussian smoothing kernel with the
+    specified sigma::
+
+        exp( - |r|**2 / (2 * sigma**2)) / (2*pi)**(3/2) / sigma**3
+
+    This is achieved by scaling each delta(k) by the factor::
+
+        exp( - |k|**2 * sigma**2 / 2)
+
+    or, equivalently, by using the filtered power spectrum::
+
+        P(k) -> P(k) * exp( - |k|**2 * sigma**2)
+
+    Note the factor of 2 difference in the last two expressions, since::
+
+        P(k) ~ < delta(k)**2 >
+
+    See section 5 of arXiv:astro-ph/0506540 for details.
+    """
+    if out is None:
+        out = np.copy(power)
+    elif out is not power:
+        validate_power(power)
+        if out.shape != power.shape:
+            raise ValueError(
+                'Output power has wrong shape: {0}.'.format(out.shape))
+        out[:] = power
+
+    out['Pk'] *= np.exp(-(power['k'] * sigma)**2)
+    return out
+
+
 def tabulate_sigmas(data, power, spacing, packed=True):
     """
     Replace an array of log10(|k|) values with the corresponding sigmas.
@@ -68,10 +126,7 @@ def tabulate_sigmas(data, power, spacing, packed=True):
                  = P(k) / (2 * spacing**3)
 
     """
-    if not isinstance(power, np.ndarray):
-        raise ValueError('Power must be a structured numpy array.')
-    if not ('k' in power.dtype.names and 'Pk' in power.dtype.names):
-        raise ValueError('Power must have fields named k, Pk.')
+    validate_power(power)
 
     nx, ny, nz = expanded_shape(data, packed=packed)
     N3 = nx * ny * nz

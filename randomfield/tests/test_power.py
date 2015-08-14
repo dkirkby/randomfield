@@ -50,6 +50,52 @@ def test_bounds():
     assert abs((kmax1 - kmax2)/kmax1) < 1e-7
 
 
+def test_valid_power():
+    power = np.zeros((10,), [('k', float), ('Pk', float)])
+    power['k'] = np.arange(1,11)
+    validate_power(power)
+
+
+def test_invalid_power():
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('Pk', float)])
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.ones((10,), [('k', float), ('Pk', float)])
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('bad', float), ('Pk', float)])
+        power['k'] = np.arange(1,11)
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('bad', float)])
+        power['k'] = np.arange(1,11)
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('Pk', float)])
+        power['k'] = np.arange(1,11)
+        power['k'][-1] = np.inf
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('Pk', float)])
+        power['k'] = np.arange(1,11)
+        power['Pk'][0] = np.nan
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('Pk', float)])
+        power['k'] = np.arange(10,0,-1)
+        validate_power(power)
+    with pytest.raises(ValueError):
+        power = np.zeros((10,), [('k', float), ('Pk', float)])
+        power['Pk'] = -1
+        validate_power(power)
+
+
+def test_validate_default_power():
+    default_power = load_default_power()
+    validate_power(default_power)
+
+
 def test_tabulate_sigmas():
     # Verify equation (60) of http://arxiv.org/abs/astro-ph/0506540
     N3 = nx * ny * nz
