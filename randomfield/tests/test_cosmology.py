@@ -36,6 +36,26 @@ def test_class_setup():
         pass
 
 
+def test_redshifts():
+    # Test redshifts calculated for a matter-only flat universe where
+    # z = r*(4-r) / (r-2)**2 with r = Dc(z)/(c/H0)
+    nz = 100
+    spacing = 2.5
+
+    data = np.empty((1, 2, nz))
+
+    from astropy.constants import c
+    model = get_cosmology({ 'H0': 70, 'Om0': 1, 'Tcmb0': 0})
+    Dc0 = (c / model.H0).to(u.Mpc).value
+
+    for scale in (1, model.h):
+        r = np.arange(nz) * spacing / scale / Dc0
+        analytic_redshifts = r * (4 - r) / (r - 2)**2
+        computed_redshifts = get_redshifts(
+            data, spacing=spacing, scaled_by_h=(scale != 1), cosmology=model)
+        assert np.allclose(analytic_redshifts, computed_redshifts)
+
+
 def test_default_power():
     default_power = load_default_power()
     assert default_power.dtype == [('k', float), ('Pk', float)]

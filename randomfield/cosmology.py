@@ -5,12 +5,18 @@ Calculate cosmological quantities.
 from __future__ import print_function, division
 
 import numpy as np
+import scipy.interpolate
 import astropy.cosmology
+import astropy.units as u
 
 
-def get_class_parameters(cosmology='Planck13'):
+def get_cosmology(cosmology='Planck13'):
     """
-    Get CLASS parameters corresponding to an astropy cosmology model.
+    Return an astropy.cosmology object.
+
+    Input can either be a pre-defined name, an instance of
+    :class:`astropy.cosmology.FRW`, or else a dictionary of parameters that can
+    be used to initialize a new :class:`astropy.cosmology.FlatLambdaCDM`.
     """
     # Convert a named cosmology to the corresponding astropy.cosmology model.
     if isinstance(cosmology, basestring):
@@ -18,6 +24,20 @@ def get_class_parameters(cosmology='Planck13'):
             raise ValueError(
                 'Not a recognized cosmology: {0}.'.format(cosmology))
         cosmology = astropy.cosmology.__dict__[cosmology]
+    elif not isinstance(cosmology, astropy.cosmology.FLRW):
+        try:
+            cosmology = astropy.cosmology.FlatLambdaCDM(**cosmology)
+        except TypeError:
+            raise ValueError(
+                'Cannot initialize a cosmology using: {0}.'.format(cosmology))
+    return cosmology
+
+
+def get_class_parameters(cosmology='Planck13'):
+    """
+    Get CLASS parameters corresponding to an astropy cosmology model.
+    """
+    cosmology = get_cosmology(cosmology)
 
     class_parameters = {}
     try:
@@ -105,6 +125,45 @@ def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
     cosmo.empty()
 
     return result
+
+
+def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
+                  z_axis=2, num_interpolation_points=100):
+    """
+    Calculate the redshift grid.
+
+    The output array is 3D with the same size as the data along z_axis but
+    length 1 along the other two axes, so it is broadcastable with data.
+    """
+    cosmology = get_cosmology(cosmology)
+
+    if len(data.shape) != 3:
+        raise ValueError('Input data is not 3D.')
+    try:
+        nz = data.shape[z_axis]
+    except (IndexError, TypeError):
+        raise ValueError('Invalid z_axis: {0}.'.format(z_axis))
+    output_shape = np.ones((3,), dtype=int)
+    output_shape[z_axis] = nz
+
+    comoving_distances = np.arange(nz) * spacing
+    if scaled_by_h:
+        comoving_distances /= cosmology.h
+    max_redshift = astropy.cosmology.z_at_value(
+        cosmology.comoving_distance, comoving_distances[-1] * u.Mpc)
+
+    # Build an interpolator for z(d) where d is in Mpc (not Mpc/h).
+    redshift_grid = np.linspace(
+        0., 1.05 * max_redshift, num_interpolation_points)
+    comoving_distance_grid = cosmology.comoving_distance(redshift_grid)
+    z_interpolator = scipy.interpolate.interp1d(
+        comoving_distance_grid, redshift_grid, kind='cubic', copy=False)
+    redshifts = z_interpolator(comoving_distances)
+
+    # Make sure the first element is exactly zero.
+    redshifts[0] = 0
+    # Make the returned array broadcastable with the input data.
+    return redshifts.reshape(output_shape)
 
 
 def convert_delta_to_density(data, spacing, cosmology='Planck13', z_axis=-1):
