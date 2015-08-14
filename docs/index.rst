@@ -1,4 +1,4 @@
-Follow the link below to view the speclite documentation. This page is a
+Follow the link below to view the randomfield documentation. This page is a
 placeholder from the astropy affiliated package template.
 
 .. toctree::

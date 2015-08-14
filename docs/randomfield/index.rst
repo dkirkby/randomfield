@@ -1,8 +1,9 @@
-********
-speclite
-********
+***********
+randomfield
+***********
 
-This package provides utilities for efficient generation of random fields for cosmology.
+This package provides utilities for efficient generation of random fields
+for cosmology.
 
 .. toctree::
   :maxdepth: 2
@@ -12,4 +13,9 @@ This package provides utilities for efficient generation of random fields for co
 Reference/API
 =============
 
-.. automodapi:: randomfield
+.. automodapi:: randomfield.generate
+.. automodapi:: randomfield.cosmology
+.. automodapi:: randomfield.power
+.. automodapi:: randomfield.transform
+.. automodapi:: randomfield.random
+.. automodapi:: randomfield.memory

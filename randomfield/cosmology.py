@@ -1,5 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-
+"""
+Calculate cosmological quantities.
+"""
 from __future__ import print_function, division
 
 import numpy as np
