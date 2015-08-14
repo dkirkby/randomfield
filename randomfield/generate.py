@@ -13,7 +13,7 @@ def generate(nx, ny, nz, spacing, power, seed):
     """
     Generate a Gaussian random field with a specified power spectrum.
 
-    Note that the results are guaranteed to be identical with the same
+    Note that the results are not guaranteed to be identical with the same
     seed because FFTW does not always use the same algorithm.
     """
     plan = Plan(shape=(nx, ny, nz), dtype_in=np.complex64,
