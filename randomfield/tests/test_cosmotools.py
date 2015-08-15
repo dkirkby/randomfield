@@ -8,6 +8,22 @@ from ..powertools import load_default_power
 import numpy as np
 
 
+def test_create_cosmology():
+    assert create_cosmology() is astropy.cosmology.Planck13
+    assert create_cosmology('Planck13') is astropy.cosmology.Planck13
+    assert create_cosmology(H0=65, Om0=0.25).h == 0.65
+    with pytest.raises(TypeError):
+        create_cosmology('Planck13', H0=65, Om0=0.25)
+    with pytest.raises(TypeError):
+        create_cosmology('Planck13', 'WMAP9')
+    with pytest.raises(TypeError):
+        create_cosmology(H0=65)
+    with pytest.raises(TypeError):
+        create_cosmology(Om0=0.25)
+    with pytest.raises(TypeError):
+        create_cosmology(H0=65, Om0=0.25, blah=123)
+
+
 def test_class_setup():
     cosmology = astropy.cosmology.Planck13
     assert cosmology.Om0 == cosmology.Odm0 + cosmology.Ob0
@@ -45,14 +61,14 @@ def test_redshifts():
     data = np.empty((1, 2, nz))
 
     from astropy.constants import c
-    model = get_cosmology({ 'H0': 70, 'Om0': 1, 'Tcmb0': 0})
+    model = create_cosmology(H0=70, Om0=1, Tcmb0=0)
     Dc0 = (c / model.H0).to(u.Mpc).value
 
     for scale in (1, model.h):
         r = np.arange(nz) * spacing / scale / Dc0
         analytic_redshifts = r * (4 - r) / (r - 2)**2
         computed_redshifts = get_redshifts(
-            data, spacing=spacing, scaled_by_h=(scale != 1), cosmology=model)
+            model, data, spacing=spacing, scaled_by_h=(scale != 1))
         assert np.allclose(analytic_redshifts, computed_redshifts)
 
 
@@ -61,8 +77,8 @@ def test_growth():
     # G(z) = 1/(1 + z).
     nz = 100
     z = np.linspace(0., 1., nz).reshape(1, nz, 1)
-    model = get_cosmology({ 'H0': 70, 'Om0': 1, 'Tcmb0': 0})
-    Gz = get_growth_function(z, model)
+    model = create_cosmology(H0=70, Om0=1, Tcmb0=0)
+    Gz = get_growth_function(model, z)
     assert Gz.shape == (1, nz, 1)
     assert np.allclose(Gz, 1/(1 + z))
 
@@ -70,6 +86,7 @@ def test_growth():
 def test_default_power():
     default_power = load_default_power()
     assert default_power.dtype == [('k', float), ('Pk', float)]
+    model = create_cosmology()
     """
     try:
         # Re-calculate the default power if CLASS is installed.
@@ -77,7 +94,7 @@ def test_default_power():
         # to what CLASS calculates given the same input configuration.
         import classy
         k_min, k_max = default_power['k'][[0,-1]]
-        calculated_power = calculate_power(k_min, k_max)
+        calculated_power = calculate_power(model, k_min, k_max)
         assert np.allclose(calculated_power['k'], default_power['k'])
         assert np.allclose(calculated_power['Pk'], default_power['Pk'])
     except ImportError:

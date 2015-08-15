@@ -11,35 +11,44 @@ import astropy.cosmology
 import astropy.units as u
 
 
-def get_cosmology(cosmology='Planck13'):
+def create_cosmology(*args, **kwargs):
     """
-    Return an astropy.cosmology object.
+    Create a background cosmology model.
 
-    Input can either be a pre-defined name, an instance of
-    :class:`astropy.cosmology.FRW`, or else a dictionary of parameters that can
-    be used to initialize a new :class:`astropy.cosmology.FlatLambdaCDM`.
+    The created model will implement the :class:`astropy.cosmology.FLRW` API.
+    Input can either be a pre-defined name, or else a dictionary of parameters
+    that can be used to initialize a new
+    :class:`astropy.cosmology.FlatLambdaCDM`. The valid names are
+    'WMAP5', 'WMAP7', 'WMAP9', 'Planck13'.
+
+    If no arguments are specified, creates the 'Planck13' model.
     """
+    if len(args) > 0 and len(kwargs) > 0:
+        raise TypeError('Cannot specify both a name and parameters.')
+    elif len(args) > 1:
+        raise TypeError('Invalid arguments: expected a name or parameters.')
+    elif len(args) == 1 and not isinstance(args[0], basestring):
+        raise TypeError('Invalid name: {0}.'.format(args[0]))
+
+    if len(args) == 0 and len(kwargs) == 0:
+        args = ['Planck13']
+
     # Convert a named cosmology to the corresponding astropy.cosmology model.
-    if isinstance(cosmology, basestring):
-        if cosmology not in astropy.cosmology.parameters.available:
+    if len(args) == 1:
+        if args[0] not in astropy.cosmology.parameters.available:
             raise ValueError(
-                'Not a recognized cosmology: {0}.'.format(cosmology))
-        cosmology = astropy.cosmology.__dict__[cosmology]
-    elif not isinstance(cosmology, astropy.cosmology.FLRW):
-        try:
-            cosmology = astropy.cosmology.FlatLambdaCDM(**cosmology)
-        except TypeError:
-            raise ValueError(
-                'Cannot initialize a cosmology using: {0}.'.format(cosmology))
+                'Not a recognized cosmology: {0}.'.format(args[0]))
+        cosmology = astropy.cosmology.__dict__[args[0]]
+    else:
+        cosmology = astropy.cosmology.FlatLambdaCDM(**kwargs)
+
     return cosmology
 
 
-def get_class_parameters(cosmology='Planck13'):
+def get_class_parameters(cosmology):
     """
     Get CLASS parameters corresponding to an astropy cosmology model.
     """
-    cosmology = get_cosmology(cosmology)
-
     class_parameters = {}
     try:
         class_parameters['h'] = cosmology.h
@@ -88,8 +97,8 @@ def get_class_parameters(cosmology='Planck13'):
     return class_parameters
 
 
-def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
-                    cosmology='Planck13', n_s=0.9619, logA=3.0980):
+def calculate_power(cosmology, k_min, k_max, z=0, num_k=500, scaled_by_h=True,
+                    n_s=0.9619, logA=3.0980):
     """
     Calculate the power spectrum P(k,z) over the range k_min <= k <= k_max.
     """
@@ -128,7 +137,7 @@ def calculate_power(k_min, k_max, z=0, num_k=500, scaled_by_h=True,
     return result
 
 
-def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
+def get_redshifts(cosmology, data, spacing, scaled_by_h=True,
                   z_axis=2, num_interpolation_points=100):
     """
     Calculate the redshift grid.
@@ -137,8 +146,6 @@ def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
     length 1 along the other two axes, so it is broadcastable with data.
     We use the plane-parallel approximation.
     """
-    cosmology = get_cosmology(cosmology)
-
     if len(data.shape) != 3:
         raise ValueError('Input data is not 3D.')
     try:
@@ -168,24 +175,22 @@ def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
     return redshifts.reshape(output_shape)
 
 
-def get_mean_matter_densities(redshifts, cosmology='Planck13'):
+def get_mean_matter_densities(cosmology, redshifts):
     """
     Calculate mean densities in g / cm**3.
     """
-    cosmology = get_cosmology(cosmology)
     mean_density0 = (
         cosmology.critical_density0 * cosmology.Om0).to(u.gram / u.cm**3).value
     return mean_density0 * (1 + redshifts)**3
 
 
-def get_growth_function(redshifts, cosmology='Planck13'):
+def get_growth_function(cosmology, redshifts):
     """
     Calculate the growth function.
 
     For now, we use the Linder 2005 approximation. See equations (14-16) of
     Weinberg 2012 for details.
     """
-    cosmology = get_cosmology(cosmology)
     z_axis = np.arange(3)[np.argsort(redshifts.shape)][-1]
     try:
         w0 = cosmology.w0
@@ -198,7 +203,7 @@ def get_growth_function(redshifts, cosmology='Planck13'):
     return np.exp(-exponent)
 
 
-def convert_delta_to_density(data, redshifts, cosmology='Planck13'):
+def convert_delta_to_density(cosmology, data, redshifts):
     """
     Convert a delta field into a density field with light-cone evolution.
 
@@ -206,7 +211,6 @@ def convert_delta_to_density(data, redshifts, cosmology='Planck13'):
     calculated at a lookback time equal to its distance from the observer.
     We use the plane-parallel approximation.
     """
-    cosmology = get_cosmology(cosmology)
     data *= get_growth_function(redshifts, cosmology)
     data += 1
     data *= get_mean_matter_densities(redshifts, cosmology)
