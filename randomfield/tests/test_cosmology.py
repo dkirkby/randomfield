@@ -56,6 +56,17 @@ def test_redshifts():
         assert np.allclose(analytic_redshifts, computed_redshifts)
 
 
+def test_growth():
+    # Test growth calculation for a matter-only flat universe where
+    # G(z) = 1/(1 + z).
+    nz = 100
+    z = np.linspace(0., 1., nz).reshape(1, nz, 1)
+    model = get_cosmology({ 'H0': 70, 'Om0': 1, 'Tcmb0': 0})
+    Gz = get_growth_function(z, model)
+    assert Gz.shape == (1, nz, 1)
+    assert np.allclose(Gz, 1/(1 + z))
+
+
 def test_default_power():
     default_power = load_default_power()
     assert default_power.dtype == [('k', float), ('Pk', float)]

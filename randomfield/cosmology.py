@@ -6,6 +6,7 @@ from __future__ import print_function, division
 
 import numpy as np
 import scipy.interpolate
+import scipy.integrate
 import astropy.cosmology
 import astropy.units as u
 
@@ -134,6 +135,7 @@ def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
 
     The output array is 3D with the same size as the data along z_axis but
     length 1 along the other two axes, so it is broadcastable with data.
+    We use the plane-parallel approximation.
     """
     cosmology = get_cosmology(cosmology)
 
@@ -166,8 +168,46 @@ def get_redshifts(data, spacing, scaled_by_h=True, cosmology='Planck13',
     return redshifts.reshape(output_shape)
 
 
-def convert_delta_to_density(data, spacing, cosmology='Planck13', z_axis=-1):
+def get_mean_matter_densities(redshifts, cosmology='Planck13'):
+    """
+    Calculate mean densities in g / cm**3.
+    """
+    cosmology = get_cosmology(cosmology)
+    mean_density0 = (
+        cosmology.critical_density0 * cosmology.Om0).to(u.gram / u.cm**3).value
+    return mean_density0 * (1 + redshifts)**3
+
+
+def get_growth_function(redshifts, cosmology='Planck13'):
+    """
+    Calculate the growth function.
+
+    For now, we use the Linder 2005 approximation. See equations (14-16) of
+    Weinberg 2012 for details.
+    """
+    cosmology = get_cosmology(cosmology)
+    z_axis = np.arange(3)[np.argsort(redshifts.shape)][-1]
+    try:
+        w0 = cosmology.w0
+    except AttributeError:
+        w0 = -1
+    gamma = 0.55 + 0.05 * (1 + w0)
+    integrand = np.power(cosmology.Om(redshifts), gamma) / (1 + redshifts)
+    exponent = scipy.integrate.cumtrapz(
+        y=integrand, x=redshifts, axis=z_axis, initial=0)
+    return np.exp(-exponent)
+
+
+def convert_delta_to_density(data, redshifts, cosmology='Planck13'):
     """
     Convert a delta field into a density field with light-cone evolution.
+
+    Results are in units of g / cm**3.  The density at each grid point is
+    calculated at a lookback time equal to its distance from the observer.
+    We use the plane-parallel approximation.
     """
-    pass
+    cosmology = get_cosmology(cosmology)
+    data *= get_growth_function(redshifts, cosmology)
+    data += 1
+    data *= get_mean_matter_densities(redshifts, cosmology)
+    return data
