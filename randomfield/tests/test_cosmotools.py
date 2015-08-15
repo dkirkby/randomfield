@@ -3,7 +3,7 @@
 from __future__ import print_function, division
 
 from astropy.tests.helper import pytest
-from ..cosmology import *
+from ..cosmotools import *
 from ..powertools import load_default_power
 import numpy as np
 

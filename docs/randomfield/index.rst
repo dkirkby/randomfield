@@ -14,7 +14,7 @@ Reference/API
 =============
 
 .. automodapi:: randomfield.generate
-.. automodapi:: randomfield.cosmology
+.. automodapi:: randomfield.cosmotools
 .. automodapi:: randomfield.powertools
 .. automodapi:: randomfield.transform
 .. automodapi:: randomfield.random
