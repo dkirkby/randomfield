@@ -211,7 +211,7 @@ def convert_delta_to_density(cosmology, data, redshifts):
     calculated at a lookback time equal to its distance from the observer.
     We use the plane-parallel approximation.
     """
-    data *= get_growth_function(redshifts, cosmology)
+    data *= get_growth_function(cosmology, redshifts)
     data += 1
-    data *= get_mean_matter_densities(redshifts, cosmology)
+    data *= get_mean_matter_densities(cosmology, redshifts)
     return data
