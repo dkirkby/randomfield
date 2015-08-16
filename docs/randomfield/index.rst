@@ -18,4 +18,3 @@ Reference/API
 .. automodapi:: randomfield.powertools
 .. automodapi:: randomfield.transform
 .. automodapi:: randomfield.random
-.. automodapi:: randomfield.memory

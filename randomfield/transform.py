@@ -6,7 +6,41 @@ from __future__ import print_function, division
 
 import numpy as np
 
-import memory
+
+def allocate(shape, dtype, use_pyfftw=True):
+    """
+    Allocate a contiguous block of un-initialized typed memory.
+
+    If the pyfftw module is importable, allocates 16-byte aligned memory using
+    for improved SIMD instruction performance. Otherwise, uses the
+    :func:`numpy.empty` function.  When shape is multi-dimensional, the
+    returned memory is initialized for C (row-major) storage order.
+
+    Parameters
+    ----------
+    shape : int or tuple of ints
+        Shape of the empty array to allocate.
+    dtype : numpy data-type
+        Data type to assign to the empty array.
+    use_pyfftw: bool
+        Use the `pyFFTW package
+        <http://hgomersall.github.io/pyFFTW/index.html>`_ if it is available.
+
+    Returns
+    -------
+    out : numpy array
+        Array of un-initialized data with the requested shape and data type.
+        The storage order of multi-dimensional arrays is always C-type
+        (row-major).
+    """
+    if use_pyfftw:
+        try:
+            import pyfftw
+            return pyfftw.n_byte_align_empty(
+                shape, pyfftw.simd_alignment, dtype, order='C')
+        except:
+            pass
+    return np.empty(shape, dtype, order='C')
 
 
 def expanded_shape(data, packed=False):
@@ -186,7 +220,7 @@ class Plan(object):
             self.data_in = data_in
         else:
             # Allocate the input and output data buffers.
-            self.data_in = memory.allocate(
+            self.data_in = allocate(
                 shape_in, dtype_in, use_pyfftw=use_pyfftw)
         if overwrite:
             if packed:
@@ -203,7 +237,7 @@ class Plan(object):
             else:
                 self.data_out = self.data_in
         else:
-            self.data_out = memory.allocate(
+            self.data_out = allocate(
                 shape_out, dtype_out, use_pyfftw=use_pyfftw)
 
         # Try to use pyFFTW to configure the transform, if requested.
