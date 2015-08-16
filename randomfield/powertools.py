@@ -172,8 +172,8 @@ def load_default_power():
     spacing >= 0.25 Mpc/h and and box dimensions <= 50 Gpc/h.
     """
     try:
-        import memory
-        package_path = os.path.dirname(inspect.getfile(memory))
+        import powertools
+        package_path = os.path.dirname(inspect.getfile(powertools))
         data_path = os.path.join(package_path, 'data', 'default_power.dat')
         return np.loadtxt(data_path, dtype=[('k', float), ('Pk', float)])
     except ImportError:

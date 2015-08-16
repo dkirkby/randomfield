@@ -11,19 +11,26 @@ import powertools
 import random
 
 
-def generate(nx, ny, nz, spacing, power, seed):
+class Generator(object):
     """
-    Generate a Gaussian random field with a specified power spectrum.
+    Manage random field generation and processing.
+    """
+    def __init__(self, nx, ny, nz, spacing):
+        self.plan_c2r = transform.Plan(
+            shape=(nx, ny, nz), dtype_in=np.complex64,
+            packed=True, overwrite=True, inverse=True, use_pyfftw=True)
+        self.plan_r2c = self.plan_c2r.create_reverse_plan(
+            reuse_output=True, overwrite=True)
+        self.spacing = spacing
 
-    Note that the results are not guaranteed to be identical with the same
-    seed because FFTW does not always use the same algorithm.
-    """
-    plan = transform.Plan(
-        shape=(nx, ny, nz), dtype_in=np.complex64,
-        packed=True, overwrite=True, inverse=True, use_pyfftw=True)
-    powertools.fill_with_log10k(plan.data_in, spacing=spacing, packed=True)
-    powertools.tabulate_sigmas(plan.data_in, power=power,
-                               spacing=spacing, packed=True)
-    random.randomize(plan.data_in, seed=seed)
-    transform.symmetrize(plan.data_in, packed=True)
-    return plan.execute()
+    def generate_delta_field(self, power, seed):
+        """
+        Generate a delta-field realization.
+        """
+        powertools.fill_with_log10k(
+            self.plan_c2r.data_in, spacing=self.spacing, packed=True)
+        powertools.tabulate_sigmas(self.plan_c2r.data_in, power=power,
+                                   spacing=self.spacing, packed=True)
+        random.randomize(self.plan_c2r.data_in, seed=seed)
+        transform.symmetrize(self.plan_c2r.data_in, packed=True)
+        return self.plan_c2r.execute()
