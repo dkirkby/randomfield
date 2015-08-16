@@ -111,14 +111,14 @@ def test_symmetrize():
 
 def test_c2c_round_trip():
     np.random.seed(seed)
-    for use_pyfftw, inverse_first, overwrite, dtype in \
-        product(TF, TF, TF, complex_types):
+    for use_pyfftw, inverse_first, overwrite_f, overwrite_r, dtype in \
+        product(TF, TF, TF, TF, complex_types):
         plan_f = Plan(
             shape=shape, dtype_in=dtype, inverse=inverse_first,
-            overwrite=overwrite, packed=False, use_pyfftw=use_pyfftw)
+            overwrite=overwrite_f, packed=False, use_pyfftw=use_pyfftw)
         plan_r = Plan(
             shape=shape, dtype_in=dtype, inverse=not inverse_first,
-            overwrite=overwrite, packed=False, use_pyfftw=use_pyfftw)
+            overwrite=overwrite_r, packed=False, use_pyfftw=use_pyfftw)
         real_size = 2 * plan_f.data_in.size
         real_dtype = scalar_type(dtype)
         plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
@@ -129,15 +129,37 @@ def test_c2c_round_trip():
         assert np.allclose(original, result, atol=1e-6)
 
 
+def test_c2c_reverse():
+    np.random.seed(seed)
+    for use_pyfftw, inverse_first, overwrite_f, overwrite_r, reuse, dtype in \
+        product(TF, TF, TF, TF, TF, complex_types):
+        plan_f = Plan(
+            shape=shape, dtype_in=dtype, inverse=inverse_first,
+            overwrite=overwrite_f, packed=False, use_pyfftw=use_pyfftw)
+        plan_r = plan_f.create_reverse_plan(
+            reuse_output=reuse, overwrite=overwrite_r)
+        real_size = 2 * plan_f.data_in.size
+        real_dtype = scalar_type(dtype)
+        plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
+            np.random.normal(size=real_size))
+        original = np.copy(plan_f.data_in)
+        plan_f.execute()
+        if not reuse:
+            plan_r.data_in[:] = plan_f.data_out
+        result = plan_r.execute()
+        assert np.allclose(original, result, atol=1e-6)
+
+
 def test_c2r_round_trip():
     np.random.seed(seed)
-    for use_pyfftw, overwrite, dtype in product(TF, TF, complex_types):
+    for use_pyfftw, overwrite_f, overwrite_r, dtype in \
+        product(TF, TF, TF, complex_types):
         plan_f = Plan(
             shape=shape, dtype_in=dtype, inverse=True,
-            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+            packed=True, overwrite=overwrite_f, use_pyfftw=use_pyfftw)
         plan_r = Plan(
             shape=shape, dtype_in=scalar_type(dtype), inverse=False,
-            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+            packed=True, overwrite=overwrite_r, use_pyfftw=use_pyfftw)
         real_size = 2 * plan_f.data_in.size
         real_dtype = scalar_type(dtype)
         plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
@@ -149,18 +171,61 @@ def test_c2r_round_trip():
         assert np.allclose(original, result, atol=1e-6)
 
 
+def test_c2r_reverse():
+    np.random.seed(seed)
+    for use_pyfftw, overwrite_f, overwrite_r, reuse, dtype in \
+        product(TF, TF, TF, TF, complex_types):
+        if reuse and not overwrite_f and overwrite_r:
+            continue
+        plan_f = Plan(
+            shape=shape, dtype_in=dtype, inverse=True,
+            packed=True, overwrite=overwrite_f, use_pyfftw=use_pyfftw)
+        plan_r = plan_f.create_reverse_plan(
+            reuse_output=reuse, overwrite=overwrite_r)
+        real_size = 2 * plan_f.data_in.size
+        real_dtype = scalar_type(dtype)
+        plan_f.data_in.view(real_dtype).reshape(real_size)[:] = (
+            np.random.normal(size=real_size))
+        symmetrize(plan_f.data_in, packed=True)
+        original = np.copy(plan_f.data_in)
+        plan_f.execute()
+        if not reuse:
+            plan_r.data_in[:] = plan_f.data_out
+        result = plan_r.execute()
+        assert np.allclose(original, result, atol=1e-6)
+
+
 def test_r2c_round_trip():
     np.random.seed(seed)
-    for use_pyfftw, overwrite, dtype in product(TF, TF, complex_types):
+    for use_pyfftw, overwrite_f, overwrite_r, dtype in \
+        product(TF, TF, TF, complex_types):
         plan_f = Plan(
             shape=shape, dtype_in=scalar_type(dtype), inverse=False,
-            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+            packed=True, overwrite=overwrite_f, use_pyfftw=use_pyfftw)
         plan_r = Plan(
             shape=shape, dtype_in=dtype, inverse=True,
-            packed=True, overwrite=overwrite, use_pyfftw=use_pyfftw)
+            packed=True, overwrite=overwrite_r, use_pyfftw=use_pyfftw)
         plan_f.data_in[:] = np.random.normal(size=shape)
         original = np.copy(plan_f.data_in)
         plan_r.data_in[:] = plan_f.execute()
+        result = plan_r.execute()
+        assert np.allclose(original, result, atol=1e-6)
+
+
+def test_r2c_reverse():
+    np.random.seed(seed)
+    for use_pyfftw, overwrite_f, overwrite_r, reuse, dtype in \
+        product(TF, TF, TF, TF, complex_types):
+        plan_f = Plan(
+            shape=shape, dtype_in=scalar_type(dtype), inverse=False,
+            packed=True, overwrite=overwrite_f, use_pyfftw=use_pyfftw)
+        plan_r = plan_f.create_reverse_plan(
+            reuse_output=reuse, overwrite=overwrite_r)
+        plan_f.data_in[:] = np.random.normal(size=shape)
+        original = np.copy(plan_f.data_in)
+        plan_f.execute()
+        if not reuse:
+            plan_r.data_in[:] = plan_f.data_out
         result = plan_r.execute()
         assert np.allclose(original, result, atol=1e-6)
 
@@ -175,7 +240,6 @@ def test_methods_agree():
         np.random.seed(seed)
         for inverse, overwrite, dtype in product(TF, TF, complex_types):
             for packed in (True, False) if inverse else (False,):
-                print(inverse, overwrite, dtype, packed)
                 plan1 = Plan(shape=shape, dtype_in=dtype, inverse=inverse,
                              overwrite=overwrite, packed=packed,
                              use_pyfftw=True)

@@ -133,8 +133,8 @@ class Plan(object):
     #implementation-details>`__ independently of which implementation
     is being used.
     """
-    def __init__(self, shape, dtype_in=np.complex64, overwrite=True,
-                 inverse=True, packed=True, use_pyfftw=True):
+    def __init__(self, shape, dtype_in=None, data_in=None,
+                 overwrite=True, inverse=True, packed=True, use_pyfftw=True):
         try:
             nx, ny, nz = shape
         except (TypeError, ValueError):
@@ -142,6 +142,11 @@ class Plan(object):
         if nx % 2 or ny % 2 or nz % 2:
             raise ValueError('All shape dimensions must be even.')
 
+        if data_in is not None:
+            if not isinstance(data_in, np.ndarray):
+                raise ValueError(
+                    'Invalid type for data_in: {0}.'.format(type(data_in)))
+            dtype_in = data_in.dtype
         # Convert dtype_in to an object in the numpy scalar type hierarchy.
         dtype_in = np.obj2sctype(dtype_in)
         if dtype_in is None:
@@ -173,9 +178,16 @@ class Plan(object):
             shape_in = shape_out = shape
             dtype_out = dtype_in
 
-        # Allocate the input and output data buffers.
-        self.data_in = memory.allocate(
-            shape_in, dtype_in, use_pyfftw=use_pyfftw)
+        if data_in is not None:
+            if data_in.shape != shape_in:
+                raise ValueError(
+                    'data_in has wrong shape {0}, expected {1}.'
+                    .format(data_in.shape, shape_in))
+            self.data_in = data_in
+        else:
+            # Allocate the input and output data buffers.
+            self.data_in = memory.allocate(
+                shape_in, dtype_in, use_pyfftw=use_pyfftw)
         if overwrite:
             if packed:
                 # See https://github.com/hgomersall/pyFFTW/issues/29
@@ -183,8 +195,10 @@ class Plan(object):
                 # Hide the padding without copying. See http://www.fftw.org/doc/
                 # Multi_002dDimensional-DFTs-of-Real-Data.html.
                 if inverse:
+                    self.data_out_padded = self.data_out
                     self.data_out = self.data_out[:, :, :nz]
                 else:
+                    self.data_in_padded = self.data_in
                     self.data_in = self.data_in[:, :, :nz]
             else:
                 self.data_out = self.data_in
@@ -197,6 +211,12 @@ class Plan(object):
         if self.use_pyfftw:
             try:
                 import pyfftw
+                if not pyfftw.is_n_byte_aligned(self.data_in,
+                                                pyfftw.simd_alignment):
+                    raise ValueError('data_in is not SIMD aligned.')
+                if not pyfftw.is_n_byte_aligned(self.data_out,
+                                                pyfftw.simd_alignment):
+                    raise ValueError('data_out is not SIMD aligned.')
                 direction = 'FFTW_BACKWARD' if inverse else 'FFTW_FORWARD'
                 self.fftw_plan = pyfftw.FFTW(
                     self.data_in, self.data_out, direction=direction,
@@ -211,6 +231,37 @@ class Plan(object):
                 self.transformer = np.fft.irfftn if packed else np.fft.ifftn
             else:
                 self.transformer = np.fft.rfftn if packed else np.fft.fftn
+
+        # Remember our options so we can create a reverse plan.
+        self.shape = shape
+        self.inverse = inverse
+        self.packed = packed
+        self.overwrite = overwrite
+
+    def create_reverse_plan(self, reuse_output=True, overwrite=True):
+        """
+        Create a plan that reverses this plan.
+
+        When reuse_output is set, the new plan's data_in uses the same memory
+        as our data_out.  Otherwise, a new un-initialized data_in buffer is
+        allocated for the new plan.
+        """
+        inverse = not self.inverse
+        if reuse_output:
+            if self.packed and self.inverse and overwrite:
+                if not self.overwrite:
+                    raise RuntimeError('Cannot re-use output for reverse plan.')
+                data_in = self.data_out_padded
+            else:
+                data_in = self.data_out
+            dtype_in = None
+        else:
+            data_in = None
+            dtype_in = self.data_out.dtype
+        plan = Plan(shape=self.shape, dtype_in=dtype_in, data_in=data_in,
+                    overwrite=overwrite, inverse=inverse, packed=self.packed,
+                    use_pyfftw=self.use_pyfftw)
+        return plan
 
     def execute(self):
         if self.use_pyfftw:

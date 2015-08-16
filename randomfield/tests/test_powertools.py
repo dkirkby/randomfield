@@ -17,7 +17,7 @@ def test_fill():
     ky0 = 2 * np.pi / (spacing * ny)
     kz0 = 2 * np.pi / (spacing * nz)
     for packed in (True, False):
-        plan = Plan(shape=(nx, ny, nz), packed=packed)
+        plan = Plan(shape=(nx, ny, nz), dtype_in=np.complex64, packed=packed)
         fill_with_log10k(plan.data_in, spacing=spacing, packed=packed)
         for ix in range(nx):
             jx = ix if ix <= nx//2 else ix - nx
@@ -36,7 +36,7 @@ def test_fill():
 
 
 def test_bounds():
-    plan = Plan(shape=(nx, ny, nz))
+    plan = Plan(shape=(nx, ny, nz), dtype_in=np.complex64)
     fill_with_log10k(plan.data_in, spacing=spacing)
     # Find the limits by brute force.
     kmax1 = 10**np.max(plan.data_in)
@@ -106,7 +106,7 @@ def test_tabulate_sigmas():
     ky0 = 2 * np.pi / (spacing * ny)
     kz0 = 2 * np.pi / (spacing * nz)
     for packed in (True, False):
-        plan = Plan(shape=(nx, ny, nz), packed=packed)
+        plan = Plan(shape=(nx, ny, nz), dtype_in=np.complex64, packed=packed)
         fill_with_log10k(plan.data_in, spacing=spacing, packed=packed)
         tabulate_sigmas(plan.data_in, power, spacing, packed=packed)
         assert plan.data_in[0, 0, 0] == 0
