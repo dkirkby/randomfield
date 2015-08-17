@@ -76,6 +76,7 @@ def validate_power(power):
         raise ValueError('Power spectrum min(k) is <= 0.')
     if np.any(power['Pk'] < 0):
         raise ValueError('Power values P(k) are not all non-negative.')
+    return power
 
 
 def filter_power(power, sigma, out=None):

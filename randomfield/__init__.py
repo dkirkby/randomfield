@@ -13,4 +13,5 @@ from ._astropy_init import *
 # For egg_info test builds to pass, put package imports here.
 if not _ASTROPY_SETUP_:
     #import memory
-    pass
+    from cosmotools import create_cosmology
+    from generate import Generator
