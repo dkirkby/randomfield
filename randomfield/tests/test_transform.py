@@ -120,6 +120,33 @@ def test_r2c_result_type():
                     (plan.data_out.base is plan.data_in.base))
 
 
+def test_nbytes_allocated():
+    nx, ny, nz = shape
+    for use_pyfftw, overwrite, packed, dtype_in in \
+        product(TF, TF, TF, complex_types):
+        plan = Plan(shape=shape, dtype_in=dtype_in, inverse=True,
+            packed=packed, overwrite=overwrite, use_pyfftw=use_pyfftw)
+        item_size = np.dtype(dtype_in).itemsize
+        print(dtype_in, item_size, packed, overwrite)
+        if not packed:
+            nbytes = item_size * nx * ny * nz
+            if not overwrite:
+                nbytes *= 2
+        else:
+            if overwrite:
+                nbytes = item_size * nx * ny * (nz//2 + 1)
+            else:
+                nbytes = item_size * nx * ny * (nz + 1)
+        assert nbytes == plan.nbytes_allocated
+        # Check that a reverse plan does not allocate any new memory when
+        # it reuses the original output.
+        if packed and not overwrite:
+            # Reverse plan cannot reuse original output in this case.
+            continue
+        plan_r = plan.create_reverse_plan(reuse_output=True, overwrite=True)
+        assert plan_r.nbytes_allocated == 0
+
+
 def test_is_hermitian():
     np.random.seed(seed)
     for use_pyfftw, overwrite, packed, ftype in \

@@ -218,10 +218,12 @@ class Plan(object):
                     'data_in has wrong shape {0}, expected {1}.'
                     .format(data_in.shape, shape_in))
             self.data_in = data_in
+            self.nbytes_allocated = 0
         else:
             # Allocate the input and output data buffers.
             self.data_in = allocate(
                 shape_in, dtype_in, use_pyfftw=use_pyfftw)
+            self.nbytes_allocated = self.data_in.nbytes
         if overwrite:
             if packed:
                 # See https://github.com/hgomersall/pyFFTW/issues/29
@@ -239,6 +241,7 @@ class Plan(object):
         else:
             self.data_out = allocate(
                 shape_out, dtype_out, use_pyfftw=use_pyfftw)
+            self.nbytes_allocated += self.data_out.nbytes
 
         # Try to use pyFFTW to configure the transform, if requested.
         self.use_pyfftw = use_pyfftw
