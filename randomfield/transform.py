@@ -257,7 +257,7 @@ class Plan(object):
                 direction = 'FFTW_BACKWARD' if inverse else 'FFTW_FORWARD'
                 self.fftw_plan = pyfftw.FFTW(
                     self.data_in, self.data_out, direction=direction,
-                    axes=(0, 1, 2))
+                    flags=('FFTW_ESTIMATE',), axes=(0, 1, 2))
                 self.fftw_norm = np.float(nx * ny * nz if inverse else 1)
             except ImportError:
                 self.use_pyfftw = False

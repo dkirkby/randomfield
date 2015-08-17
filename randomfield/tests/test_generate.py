@@ -7,16 +7,15 @@ from ..generate import *
 import numpy as np
 from scipy.special import erf
 
-from ..powertools import load_default_power
+from ..cosmotools import create_cosmology
 
 spacing = 2.5
 nxyz = 64
 seed = 123
 
 def test_generate():
-    power = load_default_power()
     generator = Generator(nxyz, nxyz, nxyz, spacing)
-    data = generator.generate_delta_field(power, seed=seed)
+    data = generator.generate_delta_field(seed=seed)
     assert data.shape == (nxyz, nxyz, nxyz)
     assert data.dtype == np.float32
     assert abs(np.mean(data)) < 1e-3
@@ -54,9 +53,9 @@ def test_gaussian_variance():
 
     ntrials = 10
     measured_var = 0
-    generator = Generator(nxyz, nxyz, nxyz, spacing)
+    generator = Generator(nxyz, nxyz, nxyz, spacing, power=power)
     for trial in range(ntrials):
-        data = generator.generate_delta_field(power, seed=seed + trial)
+        data = generator.generate_delta_field(seed=seed + trial)
         measured_var += np.var(data)
     measured_var /= ntrials
 

@@ -15,7 +15,7 @@ import transform
 
 def get_k_bounds(data, spacing, packed=True):
     """
-    Return the bounds of k**2 values for the specified grid.
+    Return the bounds of wavenumber values for the specified grid.
     """
     nx, ny, nz = transform.expanded_shape(data, packed=packed)
     k0 = (2 * np.pi) / spacing
@@ -103,6 +103,8 @@ def filter_power(power, sigma, out=None):
 
     See section 5 of arXiv:astro-ph/0506540 for details.
     """
+    if sigma < 0:
+        raise ValueError('Invalid smoothing sigma: {0}.'.format(sigma))
     if out is None:
         out = np.copy(power)
     elif out is not power:
@@ -111,8 +113,8 @@ def filter_power(power, sigma, out=None):
             raise ValueError(
                 'Output power has wrong shape: {0}.'.format(out.shape))
         out[:] = power
-
-    out['Pk'] *= np.exp(-(power['k'] * sigma)**2)
+    if sigma > 0:
+        out['Pk'] *= np.exp(-(power['k'] * sigma)**2)
     return out
 
 
