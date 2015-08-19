@@ -375,7 +375,8 @@ class Generator(object):
         plt.figure(figsize=(figure_width, figure_height))
 
         lhs = matplotlib.gridspec.GridSpec(num_sections, 1)
-        lhs.update(left=0., right=0.75, top=1., bottom=0., hspace=0., wspace=0.)
+        lhs.update(left=0.02, right=0.75, top=0.98, bottom=0.02,
+                   hspace=0., wspace=0.)
 
         for i in range(num_sections):
             iz1, iz2 = sections[i:i+2]
@@ -402,7 +403,7 @@ class Generator(object):
 
             plt.gca().yaxis.set_visible(False)
 
-        rhs = plt.axes([0.82, 0.01, 0.18, 0.98])
+        rhs = plt.axes([0.82, 0.02, 0.16, 0.96])
         bin_counts, bin_edges, bin_patches = rhs.hist(field.reshape(field.size),
             bins=200, range=(vmin,vmax), orientation='horizontal')
         plt.ylim(vmin, vmax)
