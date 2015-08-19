@@ -1,4 +1,4 @@
-0.1 (unreleased)
+0.1 (2015-08-19)
 ----------------
 
-- No changes yet
+- Initial release
