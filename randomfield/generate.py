@@ -212,7 +212,7 @@ class Generator(object):
             self.plot_slice(
                 show_plot=show_plot, save_plot_name=save_plot_name,
                 clip_symmetric=True, label='Matter inhomogeneity ' +\
-                    '$\Delta(r) = \\rho(r)/\overline{\\rho} - 1$')
+                    '$\delta(r) = \\rho(r)/\overline{\\rho} - 1$')
 
         return delta
 
