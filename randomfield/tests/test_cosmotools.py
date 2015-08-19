@@ -83,6 +83,22 @@ def test_growth():
     assert np.allclose(Gz, 1/(1 + z))
 
 
+def test_lognormal():
+    growth = 0.3
+    sigma = 2.5
+    np.random.seed(123)
+    delta = np.empty((64, 64, 128), dtype=np.float32)
+    delta[:] = sigma * np.random.normal(size=delta.shape)
+    assert abs(np.mean(delta)) < 1e-2
+    assert abs(np.std(delta) - sigma) < 1e-2 * sigma
+    rho = apply_lognormal_transform(delta, growth, sigma=2.5)
+    assert rho.shape == delta.shape
+    assert rho.base is delta.base
+    assert np.all(rho > 0)
+    assert abs(np.mean(rho) - 1.) < 1e-3
+    assert abs(np.std(rho) - growth * sigma) < 1e-2 * sigma
+
+
 def test_default_power():
     default_power = load_default_power()
     assert default_power.dtype == [('k', float), ('Pk', float)]

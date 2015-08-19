@@ -203,15 +203,19 @@ def get_growth_function(cosmology, redshifts):
     return np.exp(-exponent)
 
 
-def convert_delta_to_density(cosmology, data, redshifts):
+def apply_lognormal_transform(delta, growth, sigma=None):
     """
-    Convert a delta field into a density field with light-cone evolution.
-
-    Results are in units of g / cm**3.  The density at each grid point is
-    calculated at a lookback time equal to its distance from the observer.
-    We use the plane-parallel approximation.
+    Transform delta values drawn from a normal distribution with mean zero and
+    standard deviation sigma to have a log-normal distribution with mean one
+    and standard deviation growth * sigma. Transforms are applied in place,
+    overwriting the input delta field.  If sigma is not specified, np.std(delta)
+    will be used.
     """
-    data *= get_growth_function(cosmology, redshifts)
-    data += 1
-    data *= get_mean_matter_densities(cosmology, redshifts)
-    return data
+    if sigma is None:
+        sigma = np.std(delta)
+    t = 1 + (sigma * growth)**2
+    delta /= sigma
+    delta *= np.sqrt(np.log(t))
+    delta = np.exp(delta, out=delta)
+    delta /= np.sqrt(t)
+    return delta

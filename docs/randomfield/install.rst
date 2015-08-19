@@ -11,6 +11,22 @@ Alternatively, you can install the latest developer version from github::
     cd randomfield
     python setup.py install
 
+Optional Dependency: matplotlib
+-------------------------------
+
+The ``matplotlib`` package enables optional plotting capabilities and should
+already be installed if you are using the recommended `anaconda scientific
+python distribution <https://store.continuum.io/cshop/anaconda/>`__.
+
+Optional Dependency: classy
+---------------------------
+
+The ``classy`` package provides python bindings to the C++ `CLASS package
+<http://class-code.net>`__ and enables power spectra to be calculated
+for arbitrary cosmologies.  If you do not install ``classy``, you can still
+generate fields for arbitrary cosmology using an external program such as
+`CAMB <http://camb.info>`__ to write tabulated power spectra to files.
+
 Optional Dependency: pyFFTW
 ---------------------------
 
@@ -39,12 +55,3 @@ After entering each `configure` command above, build and install the correspondi
 Install the `pyFFTW package`_ using::
 
     pip install pyfftw
-
-Optional Dependency: classy
----------------------------
-
-The ``classy`` package provides python bindings to the C++ `CLASS package
-<http://class-code.net>`__ and enables power spectra to be calculated
-for arbitrary cosmologies.  If you do not install ``classy``, you can still
-generate fields for arbitrary cosmology using an external program such as
-`CAMB <http://camb.info>`__ to write tabulated power spectra to files.
