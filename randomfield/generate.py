@@ -21,7 +21,23 @@ class Generator(object):
     """
     Manage random field generation for a specified geometry.
 
-    All memory allocation is performed by the constructor.
+    The constructor allocates the (potentially large) memory buffer required
+    to store field values but does not initialize it.  You will normally
+    initialize the field using :meth:`generate_delta_field`.
+
+    The optional ``classy`` package is used to calculate the power spectrum
+    of an arbitrary cosmology on the fly.  If ``classy`` is not installed,
+    you can either use the default Planck13 cosmology (do not set the
+    ``cosmology`` or ``power`` parameters) or else specify your own cosmology
+    (using :func:`create_cosmology <randomfield.cosmotools.create_cosmology>`
+    for simple cases or else :mod:`astropy.cosmology`) and provided your own
+    externally calculated tabulated power spectrum (from CAMB, for example).
+
+    The optional ``matplotlib`` package is used to draw 2D slices of the
+    3D field after each processing step. The default options to generator
+    methods do not create any plots, but plots can be enabled using each
+    method's ``show_plot`` and ``save_plot_name`` options if ``matplotlib`` is
+    available.
 
     Parameters
     ----------
@@ -36,7 +52,7 @@ class Generator(object):
         line-of-sight drection.
     grid_spacing_Mpc_h: float
         Uniform grid spacing in Mpc/h.
-    cosmology: :class:`astropy.cosmology.FLRW`, optional
+    cosmology: astropy.cosmology.FLRW, optional
         Homogeneous background cosmology to use for distances and
         for calculating the power spectrum of inhomogeneities. Should be
         an instance of :class:`astropy.cosmology.FLRW`. Simple cases can
@@ -47,7 +63,8 @@ class Generator(object):
     power: numpy.ndarray, optional
         Power spectrum to use, which meet the criteria tested by
         :func:`randomfield.powertools.validate_power`. If not specified, the
-        power spectrum will be calculated for the specified cosmology.
+        power spectrum will be calculated for the specified cosmology
+        using the optional ``classy`` package.
     verbose: bool, optional.
         Print a summary of this generator's parameters.
     """
@@ -117,6 +134,13 @@ class Generator(object):
         """
         Generate a delta-field realization.
 
+        The delta field is calculated at redshift zero and sampled from a
+        distribution with mean zero and k-space variance proportional to
+        the smoothed power spectrum.
+
+        No new memory is allocated unless the ``save_potential`` option is
+        selected.
+
         Parameters
         ----------
         smoothing_length : float, optional
@@ -129,7 +153,27 @@ class Generator(object):
         save_potential: bool, optional
             Save the k-space field delta(kx,ky,kz) / k**2 so that it can be
             used for later calculations of the lensing potential or the
-            bulk velocity vector field.
+            bulk velocity vector field. The first time this option is used,
+            additional memory is allocated, approximately doubling the total
+            memory usage.
+        show_plot: bool, optional
+            Show a (y,z) slice through the generated delta field using the
+            optional matplotlib library. The plot will need to be dismissed
+            after it displays before the program continues.  Use the
+            ``save_plot_name`` option to generate and save the plot without
+            requiring any user interaction.
+        save_plot_name: str, optional
+            Name of a file where the generated delta field slice plot should
+            be saved.  The file extension provided determines the image file
+            format that will be used. This option can be used with ``show_plot``
+            either ``True`` or ``False``.
+
+        Returns
+        -------
+        delta : numpy array
+            3D numpy array of delta field values. The returned array is a
+            view into our internal memory buffer and will be overwritten by
+            subsequent operations.
         """
         powertools.fill_with_log10k(
             self.plan_c2r.data_in, spacing=self.grid_spacing_Mpc_h, packed=True)
@@ -142,7 +186,8 @@ class Generator(object):
         transform.symmetrize(self.plan_c2r.data_in, packed=True)
         if save_potential:
             # Fill self.potential with values of k**2.
-            self.potential = np.empty_like(self.plan_c2r.data_in)
+            if self.potential is None:
+                self.potential = np.empty_like(self.plan_c2r.data_in)
             self.potential.imag = 0.
             kx2_grid, ky2_grid, kz2_grid = powertools.create_ksq_grids(
                 self.potential, spacing=self.grid_spacing_Mpc_h, packed=True)
@@ -179,6 +224,31 @@ class Generator(object):
         Results are in units of g / cm**3.  The density at each grid point is
         calculated at a lookback time equal to its distance from the observer.
         We use the plane-parallel approximation.
+
+        Parameters
+        ----------
+        apply_lognormal_transform: bool, optional
+            Use :meth:`randomfield.cosmotools.apply_lognormal_transform` to
+            transform the distribution of density fluctuations so that all
+            densities are positive.
+        show_plot: bool, optional
+            Show a (y,z) slice through the calculated density field using the
+            optional matplotlib library. The plot will need to be dismissed
+            after it displays before the program continues.  Use the
+            ``save_plot_name`` option to generate and save the plot without
+            requiring any user interaction.
+        save_plot_name: str, optional
+            Name of a file where the calculated density field slice plot should
+            be saved.  The file extension provided determines the image file
+            format that will be used. This option can be used with ``show_plot``
+            either ``True`` or ``False``.
+
+        Returns
+        -------
+        density : numpy array
+            3D numpy array of light-cone density field values in g/cm**3.
+            The returned array is a view into our internal memory buffer and
+            will be overwritten by subsequent operations.
         """
         self.growth_function = cosmotools.get_growth_function(
             self.cosmology, self.redshifts)
@@ -204,7 +274,40 @@ class Generator(object):
     def calculate_newtonian_potential(self,
                                       show_plot=False, save_plot_name=None):
         """
-        Calculate the Newtonian potential dPhi(x,y,z) at redshift zero.
+        Calculate the Newtonian potential Phi(x,y,z) at redshift zero.
+
+        The potential is calculated as the inverse Fourier transform of::
+
+            Phi(kx, ky, kz) = -4 * pi * G * rho_m_0 * delta(kx, ky, kz) / k**2
+
+        where ``phi_m_0`` is the present-day matter density and the result is
+        in units of (Mpc/h)**2 / s**2.  Note that this calculation only
+        fixes the potential up to a constant and the returned values will
+        always have a spatially averaged mean of zero.
+
+        This method must be called after :meth:`generate_delta_field` using
+        the ``save_potential`` option set to ``True``.
+
+        Parameters
+        ----------
+        show_plot: bool, optional
+            Show a (y,z) slice through the calculated potential using the
+            optional matplotlib library. The plot will need to be dismissed
+            after it displays before the program continues.  Use the
+            ``save_plot_name`` option to generate and save the plot without
+            requiring any user interaction.
+        save_plot_name: str, optional
+            Name of a file where the calculated potential slice plot should
+            be saved.  The file extension provided determines the image file
+            format that will be used. This option can be used with ``show_plot``
+            either ``True`` or ``False``.
+
+        Returns
+        -------
+        Phi : numpy array
+            3D numpy array of Newtonian potential values in (Mpc/h)**2 / s**2.
+            The returned array is a view into our internal memory buffer and
+            will be overwritten by subsequent operations.
         """
         if self.potential is None:
             raise RuntimeError('No saved potential field.')
@@ -235,6 +338,10 @@ class Generator(object):
 
         This function will fail with an ImportError if matplotlib is not
         installed.
+
+        You do not normally need to call this function directly.  Instead, it
+        is invoked using the ``show_plot`` and ``save_plot_name`` options to
+        other generator methods.
         """
         if not show_plot and save_plot_name is False:
             return
