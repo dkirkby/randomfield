@@ -14,9 +14,13 @@ Randomfield depends on the following external packages:
 * `scipy <http://www.scipy.org/scipylib/index.html>`_
 * `astropy <http://www.astropy.org/>`__
 
-Randomfield can also take advantage of `pyFFTW
-<http://hgomersall.github.io/pyFFTW/index.html>`_ if it is available. See
-:doc:`install` for details.
+Randomfield can also take advantage of the following packages if they are available:
+
+* `matplotlib <http://matplotlib.org>`__
+* `classy <http://class-code.net>`__
+* `pyFFTW <http://hgomersall.github.io/pyFFTW/index.html>`__
+
+See :doc:`docs/randomfield/install` for details.
 
 Randomfield is compatible with python versions 2.6, 2.7, 3.3 and 3.4.
 

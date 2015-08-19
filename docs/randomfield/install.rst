@@ -14,9 +14,10 @@ Alternatively, you can install the latest developer version from github::
 Optional Dependency: matplotlib
 -------------------------------
 
-The ``matplotlib`` package enables optional plotting capabilities and should
-already be installed if you are using the recommended `anaconda scientific
-python distribution <https://store.continuum.io/cshop/anaconda/>`__.
+The `matplotlib <http://matplotlib.org>`__ package enables optional plotting
+capabilities and should already be installed if you are using the recommended
+`anaconda scientific python distribution
+<https://store.continuum.io/cshop/anaconda/>`__.
 
 Optional Dependency: classy
 ---------------------------
