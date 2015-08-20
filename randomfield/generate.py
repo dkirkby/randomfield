@@ -115,6 +115,11 @@ class Generator(object):
         self.x_fov = nx * self.angular_spacing.flat[-1]
         self.y_fov = ny * self.angular_spacing.flat[-1]
 
+        self.growth_function = cosmotools.get_growth_function(
+            self.cosmology, self.redshifts)
+        self.mean_matter_density = cosmotools.get_mean_matter_densities(
+            self.cosmology, self.redshifts)
+
         self.verbose = verbose
         if self.verbose:
             Mb = (self.plan_c2r.nbytes_allocated +
@@ -250,11 +255,6 @@ class Generator(object):
             The returned array is a view into our internal memory buffer and
             will be overwritten by subsequent operations.
         """
-        self.growth_function = cosmotools.get_growth_function(
-            self.cosmology, self.redshifts)
-        self.mean_matter_density = cosmotools.get_mean_matter_densities(
-            self.cosmology, self.redshifts)
-
         delta = self.plan_c2r.data_out
         if apply_lognormal_transform:
             delta = cosmotools.apply_lognormal_transform(
@@ -271,10 +271,10 @@ class Generator(object):
 
         return delta
 
-    def calculate_newtonian_potential(self,
+    def calculate_newtonian_potential(self, light_cone=True,
                                       show_plot=False, save_plot_name=None):
         """
-        Calculate the Newtonian potential Phi(x,y,z) at redshift zero.
+        Calculate the Newtonian potential Phi(r).
 
         The potential is calculated as the inverse Fourier transform of::
 
@@ -285,11 +285,18 @@ class Generator(object):
         fixes the potential up to a constant and the returned values will
         always have a spatially averaged mean of zero.
 
+        The potential can be calculated at z=0 or else on our light cone::
+
+            Phi(r,z) = (1 + z)**3 * growth(z) * Phi(r,0)
+
         This method must be called after :meth:`generate_delta_field` using
         the ``save_potential`` option set to ``True``.
 
         Parameters
         ----------
+        light_cone: bool, optional
+            Return the potential on our light cone when this is True, or else
+            at redshift zero.
         show_plot: bool, optional
             Show a (y,z) slice through the calculated potential using the
             optional matplotlib library. The plot will need to be dismissed
@@ -316,6 +323,10 @@ class Generator(object):
         scale = (-4 * np.pi * astropy.constants.G * rho0).to(u.s**-2).value
         self.plan_c2r.data_in *= scale
         field = self.plan_c2r.execute()
+
+        if light_cone:
+            field *= (1 + self.redshifts)**3
+            field *= self.growth_function
 
         if show_plot or save_plot_name is not None:
             self.plot_slice(
