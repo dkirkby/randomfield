@@ -61,7 +61,7 @@ class Generator(object):
         specified, a default :attr:`Planck13 cosmology
         <astropy.cosmology.Planck13>` will be used.
     power: numpy.ndarray, optional
-        Power spectrum to use, which meet the criteria tested by
+        Power spectrum to use, which meets the criteria tested by
         :func:`randomfield.powertools.validate_power`. If not specified, the
         power spectrum will be calculated for the specified cosmology
         using the optional ``classy`` package.
