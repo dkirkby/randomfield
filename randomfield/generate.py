@@ -105,15 +105,20 @@ class Generator(object):
         self.redshift_to_index = scipy.interpolate.interp1d(
             self.redshifts, np.arange(nz), kind='linear', bounds_error=False)
 
+        # Tabulate the comoving distance DC and transverse separation DA along
+        # the line of sight in units of Mpc/h.
+        self.DC = np.arange(nz * self.grid_spacing_Mpc_h)
+        self.DA = (self.cosmology.comoving_transverse_distance(self.redshifts)
+            .to(u.Mpc).value) * self.cosmology.h
+
         # Calculate angular spacing in transverse (x,y) grid units per degree,
         # indexed by position along the z-axis.
-        DA = self.cosmology.comoving_transverse_distance(self.redshifts).value
-        self.angular_spacing = ( DA * (np.pi / 180.) /
-            (self.grid_spacing_Mpc_h / self.cosmology.h))
+        self.angular_spacing = (
+            self.DA * (np.pi / 180.) / self.grid_spacing_Mpc_h)
         self.z_max = self.redshifts.flat[-1]
         # Use the plane-parallel approximation here.
-        self.x_fov = nx * self.angular_spacing.flat[-1]
-        self.y_fov = ny * self.angular_spacing.flat[-1]
+        self.x_fov = nx / self.angular_spacing.flat[-1]
+        self.y_fov = ny / self.angular_spacing.flat[-1]
 
         self.growth_function = cosmotools.get_growth_function(
             self.cosmology, self.redshifts)
