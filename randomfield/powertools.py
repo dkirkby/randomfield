@@ -164,24 +164,33 @@ def tabulate_sigmas(data, power, spacing, packed=True):
     return data
 
 
-def load_default_power():
+def load_default_power(scaled_by_h=True):
     """
-    Loads a default power spectrum P(k,z) with 1e-4 <= k <= 22 and z = 0.
+    Loads a default power spectrum P(k,z=0).
 
     The default power spectrum was created using::
 
-        from randomfield.power import calculate_power
-        result = calculate_power(1e-4, 22.)
-        np.savetxt('default_power.dat', result)
+        from randomfield.cosmotools import create_cosmology
+        cosmology = create_cosmology()
+        from randomfield.powertools import calculate_power
+        power = calculate_power(cosmology, 1e-4, 22., scaled_by_h=True)
+        np.savetxt('default_power.dat', power)
 
-    The range of k values used here is sufficient to cover grids with
-    spacing >= 0.25 Mpc/h and and box dimensions <= 50 Gpc/h.
+    The range of k values used here,  1e-4 h/Mpc <= k <= 22 h/Mpc,  is
+    sufficient to cover grids with spacing >= 0.25 Mpc/h and and box dimensions
+    <= 50 Gpc/h.  If ``scaled_by_h`` is True, the units are h/Mpc for k and
+    (Mpc/h)**3 for P(k).  Otherwise, replace Mpc/h with Mpc in the units.
     """
     try:
         import powertools
         package_path = os.path.dirname(inspect.getfile(powertools))
         data_path = os.path.join(package_path, 'data', 'default_power.dat')
-        return np.loadtxt(data_path, dtype=[('k', float), ('Pk', float)])
+        power = np.loadtxt(data_path, dtype=[('k', float), ('Pk', float)])
+        if scaled_by_h is False:
+            cosmology = create_cosmology()
+            power['k'] *= cosmology.h
+            power['Pk'] /= cosmology.h**3
+        return power
     except ImportError:
         raise RuntimeError('Unable to locate default_power.dat.')
     except IOError:

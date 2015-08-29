@@ -110,7 +110,8 @@ def test_default_power():
         # to what CLASS calculates given the same input configuration.
         import classy
         k_min, k_max = default_power['k'][[0,-1]]
-        calculated_power = calculate_power(model, k_min, k_max)
+        calculated_power =\
+            calculate_power(model, k_min, k_max, scaled_by_h=True)
         assert np.allclose(calculated_power['k'], default_power['k'])
         assert np.allclose(calculated_power['Pk'], default_power['Pk'])
     except ImportError:
