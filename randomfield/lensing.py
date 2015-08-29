@@ -15,7 +15,7 @@ import astropy.units
 
 def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     """
-    Calculate the geometric weight function for lensing.
+    Calculate the geometric weights for lensing.
 
     There is no standard definition of the lensing weight function, so we
     adopt the following function:
@@ -40,6 +40,9 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     and the function is broadly peaked with a maximum near
     :math:`z_{lens} = z_{src}/2` for realistic cosmologies.
 
+    Use :func:`calculate_shear_power` to calculate the lensing shear power
+    associated with the returned weight functions.
+
     Parameters
     ----------
     cosmology : instance of astropy.cosmology.FLRW
@@ -52,13 +55,13 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
         in the calculated weights. Values must be increasing but do not need to
         be equally spaced.
     DC : numpy array, optional
-        Array of :meth:`comoving distances
+        1D array of :meth:`comoving distances
         <astropy.cosmology.FLRW.comoving_distance>` along the line of sight
         corresponding to each redshift.  Units should be either Mpc (when
         ``scaled_by_h`` is False) or Mpc/h (``scaled_by_h`` is True). Will be
         calculated from the cosmology if not specified.
     DA : numpy array, optional
-        Array of :meth:`comoving transverse distances
+        1D array of :meth:`comoving transverse distances
         <astropy.cosmology.FLRW.comoving_transverse_distance>` corresponding to
         each redshift.  Units should be either Mpc (when ``scaled_by_h`` is
         False) or Mpc/h (``scaled_by_h`` is True). Will be calculated from the
@@ -141,7 +144,7 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
 
 def tabulate_3D_variances(ell, DA, growth, power):
     """
-    Tabulate 3D matter power contributions to shear power variances.
+    Tabulate 3D matter-power contributions to shear power variances.
 
     This function is defined as:
 
@@ -152,6 +155,9 @@ def tabulate_3D_variances(ell, DA, growth, power):
 
     where :math:`D` is the comoving distance corresponding to the comoving
     transverse distance :math:`D_A` and :math:`\ell` is a 2D wavenumber.
+
+    Use :func:`calculate_shear_power` to calculate the lensing shear power
+    associated with the returned 3D matter-power contributions.
 
     Parameters
     ----------
@@ -216,3 +222,95 @@ def tabulate_3D_variances(ell, DA, growth, power):
     log10k_of_DA = np.log10(ell[:, np.newaxis] / DA)
     # Tabulate pi/ell * Delta**2(k) * G(DA)**2 values on this grid.
     return (np.pi / ell[:, np.newaxis]) * Delta2(log10k_of_DA) * growth**2
+
+
+def calculate_shear_power(DC, weights, variances):
+    """
+    Calculate the shear power spectrum as a function of source position.
+
+    The result is given as:
+
+    .. math::
+
+        \Delta^2_{EE}(z_{src}, \ell) =
+        \\frac{\ell^2}{2\pi} C_{EE}(z_{src}, \ell)
+
+    and calculated as a convolution of the input weight functions
+    :math:`W(D, D_{src})` and 3D variances :math:`V(\ell, D_A)` using:
+
+    .. math::
+
+        \Delta^2_{EE}(D_{src}, \ell) = \int_{D_{min}}^{D_{src}}
+        W(D, D_{src}) V(\ell, D_A(D)) dD
+
+    The convolution integral is estimated using :func:`Simpson's rule
+    <scipy.integrate.simps>` and finer grids will generally yield more accurate
+    results. It is the caller's responsibility to ensure that the inputs are all
+    calculated on consistent grids and with consistent units (Mpc or Mpc/h).
+
+    Note that the integral above is truncated, :math:`D > D_{min}`, at the
+    minimum comoving distance ``DC[0]`` in order to set an upper bound on the
+    3D wavenumber :math:`k = \ell/D_A`. This truncation procedure effectively
+    ignores any lensing by mass inhomogeneities closer than ``DC[0]``.
+
+    Parameters
+    ----------
+    DC : numpy array
+        1D array of :meth:`comoving distances
+        <astropy.cosmology.FLRW.comoving_distance>` along the line of sight
+        corresponding to each redshift.  Units can be either Mpc or Mpc/h,
+        but must be consistent with how the weights and variances were
+        calculated.
+    weights: numpy array
+        2D array of geometric lensing weights :math:`W(D, D_{src})`, normally
+        obtained by calling :func:`calculate_lensing_weights`.  Units (Mpc or
+        Mpc/h) must be consistent with those used for ``DC`` and ``variances``.
+        The shape must be (nDC, nDC) where nDC = len(DC).
+    variances: numpy array
+        2D array of 3D matter power contributions :math:`V(\ell, D_A)` to the
+        shear variance, normally obtained by calling
+        :func:`tabulate_3D_variances`. Must be tabulated using units that are
+        consistent with those used for ``DC`` and ``weights``.  The shape must
+        be (nell, nDC) where nDC = len(DC).
+
+    Returns
+    -------
+    out : numpy array
+        2D array of lensing power spectra with shape (nDC, nell) where nDC =
+        len(DC) and nell = weights.shape[0].  The value ``out[i,j]`` gives
+        :math:`\Delta^2_{EE}` as a function of ``ell[j]`` for a source at
+        distance ``DC[i]`` (where ``ell`` is the array of 2D wavenumbers used
+        to :func:`tabulate the input variances <tabulate_3D_variances>`).
+    """
+    try:
+        assert len(DC.shape) == 1
+    except (AssertionError, AttributeError):
+        raise ValueError('Distances DC must be a 1D array.')
+    if not np.array_equal(np.unique(DC), DC) or DC[0] <= 0:
+        raise ValueError('Distances DC must be increasing values > 0.')
+    nDC = DC.size
+
+    try:
+        assert len(weights.shape) == 2
+    except (AssertionError, AttributeError):
+        raise ValueError('Weights must be a 2D array.')
+    if weights.shape != (nDC, nDC):
+        raise ValueError('Weights have wrong shape. Expected ({0}, {1}).'
+                         .format(nDC, nDC))
+
+    try:
+        assert len(variances.shape) == 2
+    except (AssertionError, AttributeError):
+        raise ValueError('Variances must be a 2D array.')
+    if variances.shape[1] != nDC:
+        raise ValueError('Variances has wrong second dimension. Expected {0}.'
+                         .format(nDC))
+    nell = variances.shape[0]
+
+    # Initialize the result array.
+    DeltaEE = np.empty((nDC, nell), dtype=float)
+    # Loop over source positions.
+    for i in range(nDC):
+        integrand = weights[i] * variances
+        DeltaEE[i] = scipy.integrate.simps(y=integrand, x=DC, axis=-1)
+    return DeltaEE
