@@ -17,13 +17,12 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     """
     Calculate the geometric weights for lensing.
 
-    There is no standard definition of the lensing weight function, so we
-    adopt the following function:
+    We adopt the following convention the for lensing weight function:
 
     .. math::
 
-        W(D, D_{src}) = \left[ \\frac{3}{2} (H_0/c)^2 \Omega_m \\right]^2
-        (1 + z(D))^2 \\frac{D_A(D)^3 D_A(D_{src}-D)^2}{D_A(D_{src})^2}
+        W(D, D_{src}) = \\frac{3}{2} (H_0/c)^2 \Omega_m
+        (1 + z(D)) \\frac{D_A(D_{src}-D)}{D_A(D_{src})} \Theta(D_{src}-D)
 
     where :math:`D` and :math:`D_{src}` are the comoving distance to the lensing
     mass and source galaxy, respectively, and :math:`z` is the lensing mass
@@ -133,11 +132,9 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     weights[weights < 0] = 0
     # Multiply by 1 + z(D)
     weights *= 1 + z
-    # Multiply by the constant 3/2 (H0/c)**2 Omega_m in units of (h/Mpc)**4.
+    # Multiply by the constant 3/2 (H0/c)**2 Omega_m with units of
+    # (h/Mpc)**2 or (1/Mpc)**2, depending on scaled_by_h.
     weights *= 1.5 * (H0 / clight_km_s)**2 * cosmology.Om0
-    # Square the weights and multiply by DA**3.
-    weights = np.square(weights, out=weights)
-    weights *= DA**3
 
     return weights
 
@@ -224,7 +221,7 @@ def tabulate_3D_variances(ell, DA, growth, power):
     return (np.pi / ell[:, np.newaxis]) * Delta2(log10k_of_DA) * growth**2
 
 
-def calculate_shear_power(DC, weights, variances):
+def calculate_shear_power(DC, DA, weights, variances):
     """
     Calculate the shear power spectrum as a function of source position.
 
@@ -241,7 +238,7 @@ def calculate_shear_power(DC, weights, variances):
     .. math::
 
         \Delta^2_{EE}(D_{src}, \ell) = \int_{D_{min}}^{D_{src}}
-        W(D, D_{src}) V(\ell, D_A(D)) dD
+        W(D, D_{src})^2 D_A(D)^3 V(\ell, D_A(D)) dD
 
     The convolution integral is estimated using :func:`Simpson's rule
     <scipy.integrate.simps>` and finer grids will generally yield more accurate
@@ -260,6 +257,12 @@ def calculate_shear_power(DC, weights, variances):
         <astropy.cosmology.FLRW.comoving_distance>` along the line of sight
         corresponding to each redshift.  Units can be either Mpc or Mpc/h,
         but must be consistent with how the weights and variances were
+        calculated.
+    DA: numpy array
+        1D array of :meth:`comoving transverse distances
+        <astropy.cosmology.FLRW.comoving_transverse_distance>` corresponding to
+        each redshift.  Units can be in either Mpc/h or Mpc, but must be
+        consistent with DC and with how the weights and variances were
         calculated.
     weights: numpy array
         2D array of geometric lensing weights :math:`W(D, D_{src})`, normally
@@ -291,6 +294,13 @@ def calculate_shear_power(DC, weights, variances):
     nDC = DC.size
 
     try:
+        assert len(DA.shape) == 1
+    except (AssertionError, AttributeError):
+        raise ValueError('Distances DA must be a 1D array.')
+    if DA.size != DC.size:
+        raise ValueError('Distance arrays DC and DA must have same size.')
+
+    try:
         assert len(weights.shape) == 2
     except (AssertionError, AttributeError):
         raise ValueError('Weights must be a 2D array.')
@@ -311,6 +321,6 @@ def calculate_shear_power(DC, weights, variances):
     DeltaEE = np.empty((nDC, nell), dtype=float)
     # Loop over source positions.
     for i in range(nDC):
-        integrand = weights[i] * variances
+        integrand = weights[i]**2 * DA**3 * variances
         DeltaEE[i] = scipy.integrate.simps(y=integrand, x=DC, axis=-1)
     return DeltaEE

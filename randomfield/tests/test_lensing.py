@@ -17,7 +17,7 @@ def test_weights_scaling_by_h():
     cosmo = create_cosmology()
     weights = calculate_lensing_weights(cosmo, z, scaled_by_h=False)
     weights_by_h = calculate_lensing_weights(cosmo, z, scaled_by_h=True)
-    assert np.allclose(weights_by_h * cosmo.h, weights)
+    assert np.allclose(weights_by_h * cosmo.h**2, weights)
 
 
 def test_variances_scaling_by_h():
@@ -51,7 +51,7 @@ def test_lensing_power():
     weights = calculate_lensing_weights(cosmo, z, DC, DA, scaled_by_h=True)
     variances = tabulate_3D_variances(ell, DA, growth, power)
     # Do the convolution integral.
-    shear_power = calculate_shear_power(DC, weights, variances)
+    shear_power = calculate_shear_power(DC, DA, weights, variances)
     # Check the shear power for zsrc = 1 and ell=100.
     assert z[90] == 1.0
     assert ell[10] == 100.0
