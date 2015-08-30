@@ -17,24 +17,31 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     """
     Calculate the geometric weights for lensing.
 
-    We adopt the following convention the for lensing weight function:
+    We adopt the following convention for the lensing weight function:
 
     .. math::
 
-        W(D, D_{src}) = \\frac{3}{2} (H_0/c)^2 \Omega_m
+        \omega_E(D, D_{src}) = \\frac{3}{2} (H_0/c)^2 \Omega_m
         (1 + z(D)) \\frac{D_A(D_{src}-D)}{D_A(D_{src})} \Theta(D_{src}-D)
 
     where :math:`D` and :math:`D_{src}` are the comoving distance to the lensing
     mass and source galaxy, respectively, and :math:`z` is the lensing mass
-    redshift.  This function determines the geometric weight (i.e., independent
-    of the 2D wavenumber :math:`\ell`) of a mass at :math:`D` lensing a source
-    at :math:`D_{src}`. The weight dimensions are inverse length in units of
-    either Mpc/h or Mpc (depending on the ``scaled_by_h`` parameter).  The
-    limiting values are:
+    redshift. The weight dimensions are inverse length squared, in units of
+    either Mpc/h or Mpc (depending on the ``scaled_by_h`` parameter).
+
+    The combination:
 
     .. math::
 
-        W(0, D_{src}) = W(D_{src}, D_{src}) = 0
+        W_{EE}(D, D_{src}) = \omega_E(D, D_{src})^2 D_A(D)^3
+
+    determines the geometric weight (i.e., independent of the 2D wavenumber
+    :math:`\ell`) of a mass at :math:`D` lensing a source at :math:`D_{src}`.
+    The limiting values are:
+
+    .. math::
+
+        W_{EE}(0, D_{src}) = W_{EE}(D_{src}, D_{src}) = 0
 
     and the function is broadly peaked with a maximum near
     :math:`z_{lens} = z_{src}/2` for realistic cosmologies.
@@ -233,22 +240,26 @@ def calculate_shear_power(DC, DA, weights, variances):
         \\frac{\ell^2}{2\pi} C_{EE}(z_{src}, \ell)
 
     and calculated as a convolution of the input weight functions
-    :math:`W(D, D_{src})` and 3D variances :math:`V(\ell, D_A)` using:
+    :math:`\omega_E(D, D_{src})` and 3D variances :math:`V(\ell, D_A)` using:
 
     .. math::
 
         \Delta^2_{EE}(D_{src}, \ell) = \int_{D_{min}}^{D_{src}}
-        W(D, D_{src})^2 D_A(D)^3 V(\ell, D_A(D)) dD
+        \omega_E(D, D_{src})^2 D_A(D)^3 V(\ell, D_A(D)) dD
 
     The convolution integral is estimated using :func:`Simpson's rule
     <scipy.integrate.simps>` and finer grids will generally yield more accurate
     results. It is the caller's responsibility to ensure that the inputs are all
     calculated on consistent grids and with consistent units (Mpc or Mpc/h).
 
-    Note that the integral above is truncated, :math:`D > D_{min}`, at the
-    minimum comoving distance ``DC[0]`` in order to set an upper bound on the
+    Note that the integral above is truncated at :math:`D_{min} > 0` equal to
+    ``DC[0]``, in order to set a finite upper bound on the
     3D wavenumber :math:`k = \ell/D_A`. This truncation procedure effectively
     ignores any lensing by mass inhomogeneities closer than ``DC[0]``.
+    Reducing :math:`D_{min}` will increase the accuracy of the calculation
+    but also requires either increasing the range of 3D wavenumbers :math:`k`
+    or decreasing the range of 2D wavenumbers :math:`\ell` used to calculate
+    :math:`V(\ell, D_A(D))`.
 
     Parameters
     ----------
@@ -265,10 +276,10 @@ def calculate_shear_power(DC, DA, weights, variances):
         consistent with DC and with how the weights and variances were
         calculated.
     weights: numpy array
-        2D array of geometric lensing weights :math:`W(D, D_{src})`, normally
-        obtained by calling :func:`calculate_lensing_weights`.  Units (Mpc or
-        Mpc/h) must be consistent with those used for ``DC`` and ``variances``.
-        The shape must be (nDC, nDC) where nDC = len(DC).
+        2D array of geometric lensing weights :math:`\omega_E(D, D_{src})`,
+        normally obtained by calling :func:`calculate_lensing_weights`.  Units
+        (Mpc or Mpc/h) must be consistent with those used for ``DC`` and
+        ``variances``. The shape must be (nDC, nDC) where nDC = len(DC).
     variances: numpy array
         2D array of 3D matter power contributions :math:`V(\ell, D_A)` to the
         shear variance, normally obtained by calling
