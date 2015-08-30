@@ -228,31 +228,48 @@ def tabulate_3D_variances(ell, DA, growth, power):
     return (np.pi / ell[:, np.newaxis]) * Delta2(log10k_of_DA) * growth**2
 
 
-def calculate_shear_power(DC, DA, weights, variances):
+def calculate_shear_power(DC, DA, weights, variances, mode='shear-shear-auto'):
     """
     Calculate the shear power spectrum as a function of source position.
 
-    The result is given as:
+    The result is given as (X = E,g):
 
     .. math::
 
-        \Delta^2_{EE}(z_{src}, \ell) =
-        \\frac{\ell^2}{2\pi} C_{EE}(z_{src}, \ell)
+        \Delta^2_{EX}(\ell) = \\frac{\ell^2}{2\pi} C_{EX}(\ell)
 
     and calculated as a convolution of the input weight functions
-    :math:`\omega_E(D, D_{src})` and 3D variances :math:`V(\ell, D_A)` using:
+    :math:`\omega_E(D, D_{src})` and 3D variances :math:`V(\ell, D_A)`. There
+    are three possible calculations, depending on the ``mode`` parameter.
+    Shear-shear auto power is calculated as:
 
     .. math::
 
         \Delta^2_{EE}(D_{src}, \ell) = \int_{D_{min}}^{D_{src}}
         \omega_E(D, D_{src})^2 D_A(D)^3 V(\ell, D_A(D)) dD
 
-    The convolution integral is estimated using :func:`Simpson's rule
-    <scipy.integrate.simps>` and finer grids will generally yield more accurate
-    results. It is the caller's responsibility to ensure that the inputs are all
-    calculated on consistent grids and with consistent units (Mpc or Mpc/h).
+    Shear-shear cross power is calculated as:
 
-    Note that the integral above is truncated at :math:`D_{min} > 0` equal to
+    .. math::
+
+        \Delta^2_{EE}(D_1, D_2, \ell) = \int_{D_{min}}^{\min(D_1,D_2)}
+        \omega_E(D, D_1) \omega_E(D, D_2) D_A(D)^3 V(\ell, D_A(D)) dD
+
+    Shear-galaxy cross power is calculated as:
+
+    .. math::
+
+        \Delta^2_{Eg}(D_{src}, D_g, \ell) =
+        \omega_E(D_g, D_{src}) D_A(D_g)^3 V(\ell, D_A(D_g))
+
+    Note that no bias factor is included in the shear-galaxy calculation, so
+    results should be interpreted as :math:`\Delta^2_{Eg} / b_g`.
+
+    The convolution integrals above are estimated using :func:`Simpson's rule
+    <scipy.integrate.simps>` and finer grids will generally yield more accurate
+    results.
+
+    Note that the integrals above are truncated at :math:`D_{min} > 0` equal to
     ``DC[0]``, in order to set a finite upper bound on the
     3D wavenumber :math:`k = \ell/D_A`. This truncation procedure effectively
     ignores any lensing by mass inhomogeneities closer than ``DC[0]``.
@@ -260,6 +277,9 @@ def calculate_shear_power(DC, DA, weights, variances):
     but also requires either increasing the range of 3D wavenumbers :math:`k`
     or decreasing the range of 2D wavenumbers :math:`\ell` used to calculate
     :math:`V(\ell, D_A(D))`.
+
+    It is the caller's responsibility to ensure that the inputs are all
+    calculated on consistent grids and with consistent units (Mpc or Mpc/h).
 
     Parameters
     ----------
@@ -286,16 +306,38 @@ def calculate_shear_power(DC, DA, weights, variances):
         :func:`tabulate_3D_variances`. Must be tabulated using units that are
         consistent with those used for ``DC`` and ``weights``.  The shape must
         be (nell, nDC) where nDC = len(DC).
+    mode: str, optional
+        Must be one of 'shear-shear-auto', 'shear-shear-cross', or
+        'shear-galaxy-cross'. Specifies the type of power spectrum that is
+        calculated and determines the shape of the result.
 
     Returns
     -------
     out : numpy array
-        2D array of lensing power spectra with shape (nDC, nell) where nDC =
-        len(DC) and nell = weights.shape[0].  The value ``out[i,j]`` gives
-        :math:`\Delta^2_{EE}` as a function of ``ell[j]`` for a source at
-        distance ``DC[i]`` (where ``ell`` is the array of 2D wavenumbers used
-        to :func:`tabulate the input variances <tabulate_3D_variances>`).
+        For 'shear-shear-auto', the result is a 2D array of lensing power
+        spectra with shape (nDC, nell) where nDC = len(DC) and nell =
+        weights.shape[0].  The value ``out[i,n]`` gives :math:`\Delta^2_{EE}`
+        as a function of ``ell[n]`` for a lensed source at distance ``DC[i]``
+        (where ``ell`` is the array of 2D wavenumbers used to :func:`tabulate
+        the input variances <tabulate_3D_variances>`).
+
+        For 'shear-shear-cross', the result is a 3D array of lensing power
+        cross spectra with shape (nDC, nDC, nell).  The value ``out[i,j,n]``
+        gives :math:`\Delta^2_{EE}` as a function of ``ell[n]`` for lensed
+        sources at distances ``DC[i]`` and ``DC[j]``.  The result is symmetric
+        in ``i`` and ``j``, and the diagonal ``i = j`` equals the
+        'shear-shear-auto' result.
+
+        For 'shear-galaxy-cross', the result is a 3D array of galaxy-lensing
+        cross spectra with shape (nDC, nDC, nell). The value ``out[i,j,n]``
+        gives :math:`\Delta^2_{Eg}` as a function of ``ell[n]`` for a lensed
+        source at distance ``DC[i]`` and a galaxy at distance ``DC[j]``.
     """
+    modes = ('shear-shear-auto', 'shear-shear-cross', 'shear-galaxy-cross')
+    if mode not in modes:
+        raise ValueError('Invalid mode. Pick one of: {0}.'
+                         .format(','.join(modes)))
+
     try:
         assert len(DC.shape) == 1
     except (AssertionError, AttributeError):
@@ -328,10 +370,28 @@ def calculate_shear_power(DC, DA, weights, variances):
                          .format(nDC))
     nell = variances.shape[0]
 
-    # Initialize the result array.
-    DeltaEE = np.empty((nDC, nell), dtype=float)
-    # Loop over source positions.
-    for i in range(nDC):
-        integrand = weights[i]**2 * DA**3 * variances
-        DeltaEE[i] = scipy.integrate.simps(y=integrand, x=DC, axis=-1)
-    return DeltaEE
+    if mode == 'shear-shear-auto':
+        # Initialize the result array.
+        Delta2 = np.empty((nDC, nell), dtype=float)
+        # Loop over lensed source positions.
+        for i in range(nDC):
+            integrand = weights[i]**2 * DA**3 * variances
+            Delta2[i] = scipy.integrate.simps(y=integrand, x=DC, axis=-1)
+    elif mode == 'shear-shear-cross':
+        # Initialize the result array.
+        Delta2 = np.empty((nDC, nDC, nell), dtype=float)
+        # Loop over lensed source positions.
+        for i in range(nDC):
+            for j in range(i+1):
+                integrand = weights[i] * weights[j] * DA**3 * variances
+                Delta2[i, j] = scipy.integrate.simps(y=integrand, x=DC, axis=-1)
+                if i > j:
+                    Delta2[j, i] = Delta2[i, j]
+    elif mode == 'shear-galaxy-cross':
+        # Initialize the result array.
+        Delta2 = np.empty((nDC, nDC, nell), dtype=float)
+        # Loop over lensed source positions.
+        for i in range(nDC):
+            Delta2[i] = np.transpose(weights[i] * DA**3 * variances)
+
+    return Delta2

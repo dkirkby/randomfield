@@ -38,9 +38,9 @@ def test_variances_scaling_by_h():
     assert np.allclose(variances_by_h, variances)
 
 
-def test_lensing_power():
-    ell = np.logspace(1., 3., 21)
-    z = np.linspace(0.1, 2.5, 241)
+def test_shear_power():
+    ell = np.logspace(1., 3., 3)
+    z = np.linspace(0.1, 1.0, 91)
     # Calculate distances, growth and power in Mpc/h units.
     cosmo = create_cosmology()
     DC = cosmo.comoving_distance(z).to(u.Mpc).value * cosmo.h
@@ -54,5 +54,11 @@ def test_lensing_power():
     shear_power = calculate_shear_power(DC, DA, weights, variances)
     # Check the shear power for zsrc = 1 and ell=100.
     assert z[90] == 1.0
-    assert ell[10] == 100.0
-    assert abs(shear_power[90, 10] - 1.32737339588e-05) < 1e-6
+    assert ell[1] == 100.0
+    assert abs(shear_power[90, 1] - 1.32737339588e-05) < 1e-6
+    # Calculate the shear-shear cross power.
+    cross_power = calculate_shear_power(DC, DA, weights, variances,
+                                        mode='shear-shear-cross')
+    # Check that the diagonal cross power equals the auto power.
+    print(cross_power.shape, np.diagonal(cross_power).shape, shear_power.shape)
+    assert np.array_equal(np.diagonal(cross_power).T, shear_power)
