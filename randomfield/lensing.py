@@ -433,7 +433,6 @@ def calculate_correlation_function(Delta2, ell, theta, order=0):
     order: int
         Order :math:`\\nu` of the Bessel function :math:`J_{\\nu}` to use
         for the transform.  Must be 0, 2, or 4.
-    symmetrize: bool, optional
 
     Returns
     -------
