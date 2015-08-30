@@ -8,6 +8,7 @@ import numpy as np
 
 import scipy.interpolate
 import scipy.integrate
+import scipy.special
 
 import astropy.constants
 import astropy.units
@@ -395,3 +396,110 @@ def calculate_shear_power(DC, DA, weights, variances, mode='shear-shear-auto'):
             Delta2[i] = np.transpose(weights[i] * DA**3 * variances)
 
     return Delta2
+
+
+def calculate_correlation_function(Delta2, ell, theta, order=0):
+    """
+    Transform a function of ell into a function of angular separation.
+
+    The transform is defined as:
+
+    .. math::
+
+        \\xi(\Delta\\theta) = (-1)^{\\nu/2} \int_{\ell_{min}}^{\ell_{max}}
+        \Delta^2(\ell) J_\\nu(\ell \Delta\\theta) \\frac{d\ell}{\ell}
+
+    where the order :math:`\\nu` should be 0 and 4 for the shear-shear
+    correlations :math:`\\xi_+` and :math:`\\xi_-`, respectively, and 2 for
+    the shear-galaxy correlation :math:`\\xi_{Eg}`.
+
+    The result is only approximate since the integral above is truncated at
+    the limits :math:`\\ell_{min}` and :math:`\\ell_{max}` corresponding to
+    ``ell[0]`` and ``ell[-1]``, respectively. The resulting finite integral
+    is estimated using :func:`Simpson's rule <scipy.integrate.simps>` (in
+    :math:`\log\ell`) and a finer grid in ``ell`` will generally yield more
+    accurate results.
+
+    Parameters
+    ----------
+    Delta2 : numpy array
+        3D array of cross power spectra :math:`\Delta^2(z_1,z_2,\ell)`.
+    ell : numpy array
+        1D array of 2D wavenumbers :math:`\ell` where the input cross power
+        spectra are tabulated.
+    dtheta: numpy array
+        1D array of 2D angular separations :math:`\Delta\\theta` where the
+        output cross correlations should be tabulated.
+    order: int
+        Order :math:`\\nu` of the Bessel function :math:`J_{\\nu}` to use
+        for the transform.  Must be 0, 2, or 4.
+    symmetrize: bool, optional
+
+    Returns
+    -------
+    out : numpy array
+        Array of cross correlations :math:`\\xi(z_1,z_2,\Delta\\theta)`.
+        The result is only calculated for :math:`z_1 \ge z_2`.  If order
+        equals 0 or 4, the result is symmetrized.  Otherwise, values for
+        :math:`z_1 < z_2` are returned as zero.
+    """
+    if order not in (0, 2, 4):
+        raise ValueError('Invalid order. Choose from 0, 2, 4.')
+
+    try:
+        assert len(ell.shape) == 1
+    except (AssertionError, AttributeError):
+        raise ValueError('Wavenumbers ell must be a 1D array.')
+    if not np.array_equal(np.unique(ell), ell) or ell[0] <= 0:
+        raise ValueError('Wavenumbers ell must be increasing values > 0.')
+    num_ell = ell.size
+
+    try:
+        assert len(Delta2.shape) == 3
+    except (AssertionError, AttributeError):
+        raise ValueError('Delta2 must be a 3D array.')
+    num_z = len(Delta2)
+    if Delta2.shape != (num_z, num_z, num_ell):
+        raise ValueError('Delta2 has wrong shape {0}.  Expected {1}.'
+                         .format(Delta2.shape, (num_z, num_z, num_ell)))
+
+    try:
+        assert len(theta.shape) == 1
+    except (AssertionError, AttributeError):
+        raise ValueError('Separations theta must be a 1D array.')
+    if not np.array_equal(np.unique(theta), theta) or theta[0] <= 0:
+        raise ValueError('Separations theta must be increasing values > 0.')
+    num_theta = theta.size
+
+    theta_min = 2 * np.pi / ell[-1]
+    theta_max = 2 * np.pi / ell[0]
+    if theta[0] < theta_min or theta[-1] > theta_max:
+        raise ValueError(
+            'Maximum allowed theta coverage is [{0:.3f}, {1:.3f}] rad'
+            .format(theta_min, theta_max))
+
+    # Calculate the kernel as a 2D array where
+    # kernel[i,j] = Jn(ell[j] * theta[i])
+    kernel = scipy.special.jv(order, ell * theta[:, np.newaxis])
+
+    # Tabulate values of log10(ell), which are the integration abscissas.
+    log_ell = np.log10(ell)
+
+    xi_shape = (num_z, num_z, num_theta)
+    if order == 2:
+        xi = np.zeros(xi_shape, dtype=float)
+    else:
+        xi = np.empty(xi_shape, dtype=float)
+
+    for i in range(num_z):
+        for j in range(i+1):
+            integrand = Delta2[i, j] * kernel
+            xi[i, j] = scipy.integrate.simps(y=integrand, x=log_ell, axis=-1)
+            if order != 2 and i > j:
+                xi[j, i] = xi[i, j]
+
+    if order == 2:
+        # Use a unfunc to ensure this happens in place.
+        xi = np.negative(xi, out=xi)
+
+    return xi
