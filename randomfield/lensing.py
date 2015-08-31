@@ -13,6 +13,8 @@ import scipy.special
 import astropy.constants
 import astropy.units
 
+import powertools
+
 
 def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
     """
@@ -219,6 +221,7 @@ def tabulate_3D_variances(ell, DA, growth, power):
 
     # Build an interpolator for the dimensionless function
     # Delta**2(k) = k**3/(2*pi**2) * P(k) that is linear in log10(k).
+    power = powertools.validate_power(power)
     k_grid = power['k']
     Delta2_grid = k_grid**3 / (2 * np.pi**2) * power['Pk']
     Delta2 = scipy.interpolate.interp1d(np.log10(k_grid), Delta2_grid,
