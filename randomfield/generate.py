@@ -109,7 +109,7 @@ class Generator(object):
 
         # Tabulate the comoving distance DC and transverse separation DA along
         # the line of sight in units of Mpc/h.
-        self.DC = np.arange(nz * self.grid_spacing_Mpc_h)
+        self.DC = np.arange(nz) * self.grid_spacing_Mpc_h
         self.DA = (self.cosmology.comoving_transverse_distance(self.redshifts)
             .to(u.Mpc).value) * self.cosmology.h
 
