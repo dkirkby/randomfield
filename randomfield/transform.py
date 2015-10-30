@@ -22,13 +22,13 @@ def allocate(shape, dtype, use_pyfftw=True):
         Shape of the empty array to allocate.
     dtype : numpy data-type
         Data type to assign to the empty array.
-    use_pyfftw: bool
+    use_pyfftw : bool
         Use the `pyFFTW package
         <http://hgomersall.github.io/pyFFTW/index.html>`_ if it is available.
 
     Returns
     -------
-    out : numpy array
+    numpy.ndarray
         Array of un-initialized data with the requested shape and data type.
         The storage order of multi-dimensional arrays is always C-type
         (row-major).

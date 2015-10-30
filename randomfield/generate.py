@@ -50,11 +50,11 @@ class Generator(object):
     nz : int
         Size of the generator grid along the y axis, corresponding to the
         line-of-sight drection.
-    grid_spacing_Mpc_h: float
+    grid_spacing_Mpc_h : float
         Uniform grid spacing in Mpc/h.
-    num_plot_sections: int
+    num_plot_sections : int
         Number of sections to split the z-axis into for slice plots.
-    cosmology: astropy.cosmology.FLRW, optional
+    cosmology : :class:`astropy.cosmology.FLRW`, optional
         Homogeneous background cosmology to use for distances and
         for calculating the power spectrum of inhomogeneities. Should be
         an instance of :class:`astropy.cosmology.FLRW`. Simple cases can
@@ -62,12 +62,12 @@ class Generator(object):
         :func:`randomfield.cosmotools.create_cosmology`. If no cosmology is
         specified, a default :attr:`Planck13 cosmology
         <astropy.cosmology.Planck13>` will be used.
-    power: numpy.ndarray, optional
+    power : numpy.ndarray, optional
         Power spectrum to use, which meets the criteria tested by
         :func:`randomfield.powertools.validate_power`. If not specified, the
         power spectrum will be calculated for the specified cosmology
         using the optional ``classy`` package.
-    verbose: bool, optional.
+    verbose : bool, optional.
         Print a summary of this generator's parameters.
     """
     def __init__(self, nx, ny, nz, grid_spacing_Mpc_h, num_plot_sections=4,
@@ -158,23 +158,23 @@ class Generator(object):
         smoothing_length : float, optional
             Length scale on which to smooth the generated delta field in Mpc/h.
             If not specified, no smoothing will be applied.
-        seed: int, optional
+        seed : int, optional
             Random number seed to use. Specifying an explicit seed enables you
             to generate a reproducible delta field.  If no seed is specified,
             a randomized seed will be used.
-        save_potential: bool, optional
+        save_potential : bool, optional
             Save the k-space field delta(kx,ky,kz) / k**2 so that it can be
             used for later calculations of the lensing potential or the
             bulk velocity vector field. The first time this option is used,
             additional memory is allocated, approximately doubling the total
             memory usage.
-        show_plot: bool, optional
+        show_plot : bool, optional
             Show a (y,z) slice through the generated delta field using the
             optional matplotlib library. The plot will need to be dismissed
             after it displays before the program continues.  Use the
             ``save_plot_name`` option to generate and save the plot without
             requiring any user interaction.
-        save_plot_name: str, optional
+        save_plot_name : str, optional
             Name of a file where the generated delta field slice plot should
             be saved.  The file extension provided determines the image file
             format that will be used. This option can be used with ``show_plot``
@@ -182,7 +182,7 @@ class Generator(object):
 
         Returns
         -------
-        delta : numpy array
+        numpy.narray
             3D numpy array of delta field values. The returned array is a
             view into our internal memory buffer and will be overwritten by
             subsequent operations.
@@ -239,17 +239,17 @@ class Generator(object):
 
         Parameters
         ----------
-        apply_lognormal_transform: bool, optional
+        apply_lognormal_transform : bool, optional
             Use :meth:`randomfield.cosmotools.apply_lognormal_transform` to
             transform the distribution of density fluctuations so that all
             densities are positive.
-        show_plot: bool, optional
+        show_plot : bool, optional
             Show a (y,z) slice through the calculated density field using the
             optional matplotlib library. The plot will need to be dismissed
             after it displays before the program continues.  Use the
             ``save_plot_name`` option to generate and save the plot without
             requiring any user interaction.
-        save_plot_name: str, optional
+        save_plot_name : str, optional
             Name of a file where the calculated density field slice plot should
             be saved.  The file extension provided determines the image file
             format that will be used. This option can be used with ``show_plot``
@@ -257,7 +257,7 @@ class Generator(object):
 
         Returns
         -------
-        density : numpy array
+        numpy.ndarray
             3D numpy array of light-cone density field values in g/cm**3.
             The returned array is a view into our internal memory buffer and
             will be overwritten by subsequent operations.
@@ -305,16 +305,16 @@ class Generator(object):
 
         Parameters
         ----------
-        light_cone: bool, optional
+        light_cone : bool, optional
             Return the potential on our light cone when this is True, or else
             at redshift zero.
-        show_plot: bool, optional
+        show_plot : bool, optional
             Show a (y,z) slice through the calculated potential using the
             optional matplotlib library. The plot will need to be dismissed
             after it displays before the program continues.  Use the
             ``save_plot_name`` option to generate and save the plot without
             requiring any user interaction.
-        save_plot_name: str, optional
+        save_plot_name : str, optional
             Name of a file where the calculated potential slice plot should
             be saved.  The file extension provided determines the image file
             format that will be used. This option can be used with ``show_plot``
@@ -322,7 +322,7 @@ class Generator(object):
 
         Returns
         -------
-        Phi : numpy array
+        numpy.ndarray
             3D numpy array of Newtonian potential values in units of s**-2.
             The returned array is a view into our internal memory buffer and
             will be overwritten by subsequent operations.

@@ -54,12 +54,12 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
 
     Parameters
     ----------
-    cosmology : instance of astropy.cosmology.FLRW
+    cosmology : instance of :class:`astropy.cosmology.FLRW`
         Background cosmology that specifies the values of Omega_k, Omega_m and
         (if ``scaled_by_h`` is False) H0 to use.  If ``DA`` is not provided, the
         cosmology is also used to calculate ``DA`` values from the input ``DC``
         values.
-    z: numpy array
+    z : numpy array
         1D array of redshifts to use for the grid of source and lens positions
         in the calculated weights. Values must be increasing but do not need to
         be equally spaced.
@@ -75,14 +75,14 @@ def calculate_lensing_weights(cosmology, z, DC=None, DA=None, scaled_by_h=True):
         each redshift.  Units should be either Mpc (when ``scaled_by_h`` is
         False) or Mpc/h (``scaled_by_h`` is True). Will be calculated from the
         cosmology if not specified.
-    scaled_by_h: bool, optional
+    scaled_by_h : bool, optional
         Specifies the units of the input ``DC`` and ``DA`` arrays and the output
         weights.  When True, inputs must be in Mpc/h and the result is in h/Mpc.
         When False, inputs must be in Mpc and the result is in 1/Mpc.
 
     Returns
     -------
-    out : numpy array
+    numpy.ndarray
         Two dimensional array with shape (nz, nz) where nz is the number of
         input redshifts.  The value ``out[i,j]`` gives the weight function for a
         source at redshift ``z[i]`` as a function of lensing redshift ``z[j]``
@@ -168,23 +168,23 @@ def tabulate_3D_variances(ell, DA, growth, power):
 
     Parameters
     ----------
-    ell: numpy array
+    ell : numpy.ndarray
         1D array of 2D wavenumbers where shear power variances should be
         tabulated.  Values must be positive and increasing, but do not need
         to be equally spaced.
-    DA: numpy array
+    DA : numpy.ndarray
         1D array of :meth:`comoving transverse distances
         <astropy.cosmology.FLRW.comoving_transverse_distance>` :math:`D_A(z)`
         where shear power variances should be tabulated. Values must be
         positive and increasing, but do not need to be equally spaced. Values
         can be in either Mpc/h or Mpc, but must be consistent with the power
         spectrum normalization.
-    growth: numpy array
+    growth : numpy.ndarray
         1D array of growth function values :math:`G(z)` corresponding to each
         input :math:`DA(z)` value.  Must have the same number of elements as
         DA.  Can be calculated using
         :func:`randomfield.cosmotools.get_growth_function`.
-    power: structured numpy array
+    power : structured numpy.ndarray
         Power spectrum to use, which meets the criteria tested by
         :func:`randomfield.powertools.validate_power`.  Can be calculated using
         :func:`randomfield.cosmotools.calculate_power` if the optional
@@ -193,7 +193,7 @@ def tabulate_3D_variances(ell, DA, growth, power):
 
     Returns
     -------
-    out : numpy array
+    numpy.ndarray
         Two dimensional array with shape (nell, nDA) where nell = len(ell) and
         nDA = len(DA).  The value ``out[i,j]`` gives the contribution to the
         shear variance :math:`\Delta^2_{EE}` at 2D wavenumber ``ell[i]`` from
@@ -287,37 +287,37 @@ def calculate_shear_power(DC, DA, weights, variances, mode='shear-shear-auto'):
 
     Parameters
     ----------
-    DC : numpy array
+    DC : numpy.ndarray
         1D array of :meth:`comoving distances
         <astropy.cosmology.FLRW.comoving_distance>` along the line of sight
         corresponding to each redshift.  Units can be either Mpc or Mpc/h,
         but must be consistent with how the weights and variances were
         calculated.
-    DA: numpy array
+    DA : numpy.ndarray
         1D array of :meth:`comoving transverse distances
         <astropy.cosmology.FLRW.comoving_transverse_distance>` corresponding to
         each redshift.  Units can be in either Mpc/h or Mpc, but must be
         consistent with DC and with how the weights and variances were
         calculated.
-    weights: numpy array
+    weights : numpy.ndarray
         2D array of geometric lensing weights :math:`\omega_E(D, D_{src})`,
         normally obtained by calling :func:`calculate_lensing_weights`.  Units
         (Mpc or Mpc/h) must be consistent with those used for ``DC`` and
         ``variances``. The shape must be (nDC, nDC) where nDC = len(DC).
-    variances: numpy array
+    variances : numpy.ndarray
         2D array of 3D matter power contributions :math:`V(\ell, D_A)` to the
         shear variance, normally obtained by calling
         :func:`tabulate_3D_variances`. Must be tabulated using units that are
         consistent with those used for ``DC`` and ``weights``.  The shape must
         be (nell, nDC) where nDC = len(DC).
-    mode: str, optional
+    mode : str, optional
         Must be one of 'shear-shear-auto', 'shear-shear-cross', or
         'shear-galaxy-cross'. Specifies the type of power spectrum that is
         calculated and determines the shape of the result.
 
     Returns
     -------
-    out : numpy array
+    numpy.ndarray
         For 'shear-shear-auto', the result is a 2D array of lensing power
         spectra with shape (nDC, nell) where nDC = len(DC) and nell =
         weights.shape[0].  The value ``out[i,n]`` gives :math:`\Delta^2_{EE}`
@@ -425,21 +425,21 @@ def calculate_correlation_function(Delta2, ell, theta, order=0):
 
     Parameters
     ----------
-    Delta2 : numpy array
+    Delta2 : numpy.ndarray
         3D array of cross power spectra :math:`\Delta^2(z_1,z_2,\ell)`.
-    ell : numpy array
+    ell : numpy.ndarray
         1D array of 2D wavenumbers :math:`\ell` where the input cross power
         spectra are tabulated.
-    dtheta: numpy array
+    dtheta : numpy.ndarray
         1D array of 2D angular separations :math:`\Delta\\theta` where the
         output cross correlations should be tabulated.
-    order: int
+    order : int
         Order :math:`\\nu` of the Bessel function :math:`J_{\\nu}` to use
         for the transform.  Must be 0, 2, or 4.
 
     Returns
     -------
-    out : numpy array
+    numpy.ndarray
         Array of cross correlations :math:`\\xi(z_1,z_2,\Delta\\theta)`.
         The result is only calculated for :math:`z_1 \ge z_2`.  If order
         equals 0 or 4, the result is symmetrized.  Otherwise, values for
