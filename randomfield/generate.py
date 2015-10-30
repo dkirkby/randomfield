@@ -52,6 +52,8 @@ class Generator(object):
         line-of-sight drection.
     grid_spacing_Mpc_h: float
         Uniform grid spacing in Mpc/h.
+    num_plot_sections: int
+        Number of sections to split the z-axis into for slice plots.
     cosmology: astropy.cosmology.FLRW, optional
         Homogeneous background cosmology to use for distances and
         for calculating the power spectrum of inhomogeneities. Should be
