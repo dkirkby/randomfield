@@ -281,21 +281,25 @@ class Generator(object):
         """
         Calculate the Newtonian potential Phi(r).
 
-        The potential is calculated as the inverse Fourier transform of::
+        Variations in the potential at z=0 are calculated as the inverse
+        Fourier transform of:
 
-            Phi(kx, ky, kz) = -4 * pi * G * rho_m_0 * delta(kx, ky, kz) / k**2
+        .. math::
 
-        where ``phi_m_0`` is the present-day matter density and the result is
-        in units of (Mpc/h)**2 / s**2.  Note that this calculation only
-        fixes the potential up to a constant and the returned values will
-        always have a spatially averaged mean of zero.
+            \delta\\tilde{\Phi}(\\vec{k},0) = -\\frac{1}{k^2}\,
+            \\frac{3}{2} H_0^2 \Omega_m\, \\tilde{\delta}(\\vec{k},0)
 
-        The potential can be calculated at z=0 or else on our light cone::
+        The redshift evolution is calculated as:
 
-            Phi(r,z) = (1 + z)**3 * growth(z) * Phi(r,0)
+        .. math::
+
+            \delta\\Phi(\\vec{r},z) =
+            \\frac{G(z)}{1+z}\, \delta\\Phi(\\vec{r}, 0)
 
         This method must be called after :meth:`generate_delta_field` using
-        the ``save_potential`` option set to ``True``.
+        the ``save_potential`` option set to ``True``.  The saved potential
+        is not modified so this method can be called multiple times with
+        different options.
 
         Parameters
         ----------
@@ -317,26 +321,28 @@ class Generator(object):
         Returns
         -------
         Phi : numpy array
-            3D numpy array of Newtonian potential values in (Mpc/h)**2 / s**2.
+            3D numpy array of Newtonian potential values in units of s**-2.
             The returned array is a view into our internal memory buffer and
             will be overwritten by subsequent operations.
         """
         if self.potential is None:
             raise RuntimeError('No saved potential field.')
         self.plan_c2r.data_in[:] = self.potential
-        rho0 = self.cosmology.critical_density0 * self.cosmology.Om0
-        scale = (-4 * np.pi * astropy.constants.G * rho0).to(u.s**-2).value
+
+        # We are working in Mpc/h so H0 = 100 (km/s)/Mpc
+        H0 = 100 * (u.km / u.s) / u.Mpc
+        scale = (-1.5 * H0**2 * self.cosmology.Om0).to(u.s**-2).value
         self.plan_c2r.data_in *= scale
         field = self.plan_c2r.execute()
 
         if light_cone:
-            field *= (1 + self.redshifts)**3
             field *= self.growth_function
+            field /= 1 + self.redshifts
 
         if show_plot or save_plot_name is not None:
             self.plot_slice(
                 show_plot=show_plot, save_plot_name=save_plot_name,
-                label='Newtonian potential $\Phi(r)$ (Mpc/h)$^2$/s$^2$')
+                label='Newtonian potential $\Phi(r)$ [s$^{-2}$]')
 
         return field
 
