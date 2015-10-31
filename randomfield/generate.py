@@ -8,6 +8,7 @@ import random
 
 import numpy as np
 import scipy.interpolate
+import scipy.integrate
 
 import astropy.units as u
 import astropy.constants
@@ -342,14 +343,81 @@ class Generator(object):
             field /= 1 + self.redshifts
 
         if show_plot or save_plot_name is not None:
-            self.plot_slice(
+            self.plot_slice(clip_symmetric=True,
                 show_plot=show_plot, save_plot_name=save_plot_name,
                 label='Newtonian potential $\Phi(r)$ [s$^{-2}$]')
 
         return field
 
 
-    def plot_slice(self, slice_index=0, figure_width=10.,
+    def calculate_lensing_potential(self, i_min=None, show_plot=False,
+                                    save_plot_name=None):
+        """
+        Calculate the lensing potential psi(r).
+
+        The calculation is:
+
+        .. math::
+
+            \psi(\\vec{r}, z) = \int_{D_{min}}^{D_{src}} \left[
+            \cot_K(D) - \cot_K(D_{src}) \\right] \delta\Phi(\\vec{r}, z)
+
+        You will normally call :func:`calculate_newtonian_potential`
+        with ``light_cone=True`` just before this.
+
+        The ``i_min`` argument truncates the lensing potential integral
+        at a minimum comoving distance :math:`D_{min}` from the observer
+        equal to ``self.DC[i_min]``.  The default is 1/32 of the grid size
+        along the line of sight.
+        """
+        nDC = self.DC.size
+        if i_min is None:
+            i_min = nDC // 32
+        if i_min < 0 or i_min >= nDC:
+            raise ValueError(
+                'Invalid i_min {}. Expected 0 - {}.'.format(i_min, nDC - 1))
+
+        # Calculate the curvature constant K in units of (Mpc/h)**-2.
+        clight_km_s = astropy.constants.c.to(u.km / u.s).value
+        H0 = 100. # in Mpc/h units
+        K = -self.cosmology.Ok0 * (H0 / clight_km_s)**2
+        # Tabulate cosK(D), which is dimensionless.
+        if K < 0:
+            sqrt_abs_K = np.sqrt(-K)
+            cosK =  np.cosh(sqrt_abs_K * self.DC)
+        elif K > 0:
+            sqrt_K = np.sqrt(K)
+            cosK = np.cos(sqrt_K * self.DC)
+        else:
+            cosK = np.ones_like(self.DA, dtype=float)
+        # Tabulate cotK(D), which is also dimensionless.
+        cotK = np.ones_like(cosK)
+        cotK[1:] = cosK[1:] / self.DA[1:]
+
+        # Allocate memory for the result.
+        dPhi = self.plan_c2r.data_out
+        psi = np.empty_like(dPhi)
+
+        # Loop over redshift slices, starting from the most distant
+        # and working backwards.
+        for i in range(nDC, i_min, -1):
+            # Overwrite psi with the integrand for this slice.
+            psi[:, :, i_min:i] = dPhi[:, :, i_min:i]
+            psi[:, :, i_min:i] *= -2 * (cotK[i_min:i] - cotK[i-1])
+            # Integrate the result up to this slice and save the result in the slice itself.
+            psi[:, :, i-1] = scipy.integrate.simps(
+                y=psi[:, :, i_min:i], x=self.DC[i_min:i], axis=-1)
+        if i_min > 0:
+            psi[:, :, :i_min] = 0.
+
+        if show_plot or save_plot_name is not None:
+            self.plot_slice(field=psi, clip_percent=15.0, clip_symmetric=True,
+                show_plot=show_plot, save_plot_name=save_plot_name,
+                label='Lensing potential $\psi(r)$ [(Mpc/h) s$^{-2}$]')
+
+        return psi
+
+    def plot_slice(self, field=None, slice_index=0, figure_width=10.,
                    label='Field values', cmap='jet',
                    clip_percent=1.0, clip_symmetric=False, axis_dz=0.1,
                    field_of_view_deg=3.5, show_plot=False, save_plot_name=None):
@@ -374,7 +442,8 @@ class Generator(object):
         import matplotlib.gridspec
         import matplotlib.colors
 
-        field = self.plan_c2r.data_out
+        if field is None:
+            field = self.plan_c2r.data_out
         redshifts = self.redshifts
         zfunc = self.redshift_to_index
         num_sections = self.num_plot_sections
@@ -386,7 +455,7 @@ class Generator(object):
         y_limits = (0, ny - 1)
 
         vmin, vmax = np.percentile(
-            field, (0.5*clip_percent, 100 - 0.5*clip_percent))
+            field[slice_index], (0.5*clip_percent, 100 - 0.5*clip_percent))
         if clip_symmetric:
             vlim = max(abs(vmin), abs(vmax))
             vmin, vmax = -vlim, +vlim
