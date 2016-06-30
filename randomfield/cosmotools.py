@@ -116,6 +116,7 @@ def calculate_power(cosmology, k_min, k_max, z=0, num_k=500, scaled_by_h=True,
         class_parameters['P_k_max_1/Mpc'] = k_max
     class_parameters['n_s'] = n_s
     class_parameters['ln10^{10}A_s'] = logA
+    class_parameters['z_pk'] = str(z)
     cosmo.set(class_parameters)
     cosmo.compute()
 
