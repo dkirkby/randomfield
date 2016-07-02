@@ -63,10 +63,14 @@ def get_class_parameters(cosmology):
         try:
             # Only subclasses of wCDM have the w0 attribute.
             class_parameters['w0_fld'] = cosmology.w0
-            class_parameters['wa_fld'] = 0.
             class_parameters['Omega_Lambda'] = 0.
         except AttributeError:
             class_parameters['Omega_fld'] = 0.
+        else:
+            try:
+                class_parameters['wa_fld'] = cosmology.wa
+            except AttributeError:
+                class_parameters['wa_fld'] = 0.
         # Neutrino sector.
         if cosmology.has_massive_nu:
             m_nu = cosmology.m_nu
