@@ -208,6 +208,67 @@ def get_growth_function(cosmology, redshifts):
     return np.exp(-exponent)
 
 
+def full_growth_function(cosmology, redshifts, G0, Z0, integrator='dopri5'):
+    """
+    Numerical integration of the grwoth function.
+    
+    A list of initial values G0 for the growth function and its derivative
+    (with respect to redshift) are given for an initial redshift Z0. Output
+    array is a numpy structured array with three fields: 'G' contains the
+    growth function, 'd_G' contains the derivative with respect to redshift
+    d G / d z, and 'd_lnG' contains the logrithmic derivative
+    d (lnG) / d (lna).
+    """
+    def grow(z, g0, arg1):
+        G, Gprime = g0
+        Om, Op, Or, Ok, H0 = (arg1.Om0, arg1.Ode0, arg1.Ogamma0,
+                              arg1.Ok0, arg1.H0)
+        try:
+            w0 = arg1.w0
+        except AttributeError:
+            w0, wa = (-1.0, 0.0)
+        else:
+            try:
+                wa = arg1.wa
+            except AttributeError:
+                wa = 0.0
+        gppcoeff = ((1 + z) * arg1.H(z)) ** 2
+        Opp = (3 * (1 + w0 + z + w0 * z + wa * z) * Op
+               * (1 + z) ** (3 * w0 + 3 * wa + 1)
+               * np.exp(-3 * wa * z / (1 + z)))
+        E2p = (3 * Om * (1 + z) ** 2 + 4 * Or * (1 + z) ** 3
+               + 2 * Ok * (1 + z) + Opp)
+        gpcoeff = ((1 + z) * arg1.H(z) ** 2
+                   - (1 + z) ** 2 * E2p * H0 ** 2 / 2.0)
+        gcoeff = 3 * Om * H0 ** 2 * (1 + z) ** 3 / 2.0
+        gpcoeff = ((1 + z) * arg1.H(z) ** 2
+                   - (1 + z) ** 2 * E2p * H0 ** 2 / 2.0)
+        dgdz = [Gprime, ((gpcoeff / gppcoeff).to(1) * Gprime
+                         + (gcoeff / gppcoeff).to(1) * G)]
+        return dgdz
+    ode = scipy.integrate.ode(grow)
+    ode.set_integrator(integrator)
+    ode.set_initial_value(G0, Z0)
+    ode.set_f_params(cosmology)
+    
+    start = list(G0)
+    start.append(-start[1] * (1 + Z0) / start[0])
+    result = np.array(tuple(start), dtype=[('G', 'float64'),
+                      ('d_G','float64'),('d_lnG','float64')])
+    
+    if redshifts[0] == Z0:
+        Z = redshifts[1:]
+    else:
+        Z = redshifts
+    for rs in Z:
+        step = list(ode.integrate(rs))
+        step.append(-step[1] * (1 + rs) / step[0])
+        step = np.array(tuple(step),dtype = [('G', 'float64'),
+                        ("d_G",'float64'),('d_lnG','float64')])
+        result = np.vstack((result, step))
+    growth = result.reshape(len(result))
+    return growth
+
 def apply_lognormal_transform(delta, growth, sigma=None):
     """
     Transform delta values drawn from a normal distribution with mean zero and
